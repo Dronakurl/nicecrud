@@ -1,17 +1,36 @@
-# from rich import print
 import pytest
 from pydantic import BaseModel, Field
 
-from frontend.basemodel_to_table import (basemodel_to_columns,
+from nicecrud.basemodel_to_table import (basemodel_to_columns,
                                          basemodellist_to_rows,
                                          basemodellist_to_rows_and_cols)
-from objectmvp.model import Model
-from objectmvp.source import Source
+
+
+class Model(BaseModel):
+    modelid: str
+    file: str
+    typ: str
+    objects: list[str]
+
+
+class Source(BaseModel):
+    source_id: str
+    typ: str
+    url: str
+    models: dict[str, Model]
+
+
+class Bicycle(BaseModel):
+    brand: str = Field(..., title="Brand")
+    model: str = Field(..., title="Model")
+    gear_count: int = Field(..., title="Gear Count")
+
+    is_electric: bool = Field(False, title="Is Electric")
 
 
 def test_basemodellist():
     yolo_world = Model(
-        cvmodel_id="yolo_world",
+        modelid="yolo_world",
         file="models/cups.pt",
         typ="YOLO",
         objects=["drone", "cloud"],
@@ -20,25 +39,18 @@ def test_basemodellist():
         source_id="camera2",
         typ="video_file",
         url="./doesnotexist.mp4",
-        models={yolo_world.cvmodel_id: yolo_world},
+        models={yolo_world.modelid: yolo_world},
     )
     birk = Source(
         source_id="camera3",
         typ="video_file",
         url="./doesnotexist.mp4",
-        models={yolo_world.cvmodel_id: yolo_world},
+        models={yolo_world.modelid: yolo_world},
     )
     basemodellist = [camera, birk]
     r, c = basemodellist_to_rows_and_cols(basemodellist)
     assert "source_id" in [x["name"] for x in c]
     assert "camera3" in [x["source_id"] for x in r]
-
-
-class Bicycle(BaseModel):
-    brand: str = Field(..., title="Brand")
-    model: str = Field(..., title="Model")
-    gear_count: int = Field(..., title="Gear Count")
-    is_electric: bool = Field(False, title="Is Electric")
 
 
 @pytest.fixture

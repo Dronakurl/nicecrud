@@ -10,6 +10,10 @@ license = "MIT"
 python = "^3.12"
 nicegui = "^1.4.26"
 
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.2.1"
+pytest-asyncio = "^0.23.7"
+
 [tool.pytest.ini_options]
 addopts = [
   "--import-mode=importlib",
@@ -20,7 +24,7 @@ addopts = [
 ]
 asyncio_mode = "auto"
 pythonpath = ["."]
-testpaths = ["**/test", "test", "test/*.py"]
+testpaths = ["tests"]
 
 [tool.ruff]
 line-length = 120

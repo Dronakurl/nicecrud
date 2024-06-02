@@ -13,9 +13,8 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from pydantic.fields import FieldInfo
 
 from .basemodel_to_table import basemodellist_to_rows_and_cols
-from .error import show_error
+from .show_error import show_error
 
-print(__name__)
 log = logging.getLogger(__name__)
 log.addHandler(logging.NullHandler())
 
@@ -25,24 +24,24 @@ class FieldOptions(BaseModel, title="Options that can be set in each Field in js
 
     # NOTE: It would be nice to inherit from FieldInfo class
     step: Optional[float] = Field(default=None, title="Step size for numeric Fields")
-    input_type: Optional[Literal["slider", "number"]] = Field(default=None)
+    input_type: Optional[Literal["slider", "number", "select"]] = Field(default=None)
     readonly: Optional[bool] = Field(default=None)
     exclude: Optional[bool] = Field(default=None)
 
 
 class NiceCRUDConfig(BaseModel, title="Options for a NiceCRUD instance"):
-    """ "General nicecrud config. This is put in a BaseModel objects so it is easier to use the editor to manage options"""
+    """General nicecrud config. This is put in a BaseModel objects so it is easier to use the editor to manage options"""
 
     id_field: str = ""
     id_label: Optional[str] = None
     no_data_label: str = "No data given"
-    search_input_label: str = "Search table"
+    search_input_label: Optional[str] = None
     heading: str | None = None
     add_button_text: str = "Add new item"
     delete_button_text: str = "Delete selected items"
     model_config: ConfigDict = ConfigDict(validate_assignment=True)
-    new_item_dialog_heading: str = "Add item"
-    update_item_dialog_heading: str = "Update item"
+    new_item_dialog_heading: Optional[str] = None
+    update_item_dialog_heading: Optional[str] = None
     additional_exclude: list[str] = Field(
         default_factory=list,
         description="fields that should be excluded from the CRUD application additionally to those excluded in pydantic",
@@ -51,6 +50,8 @@ class NiceCRUDConfig(BaseModel, title="Options for a NiceCRUD instance"):
         default_factory=list,
         description="fields that should be excluded from the CRUD application in the submodel additionally ",
     )
+    heading_classes: str = Field(default="text-xl font-bold", description="CSS (tailwind) classes for headings")
+    subheading_classes: str = Field(default="text-lg font-bold", description="CSS (tailwind) classes for subheadings")
 
     def update(self, data: dict):
         for k, v in data.items():
@@ -66,7 +67,7 @@ class FieldHelperMixin(Generic[T]):
     """Mixin class to provide field functions to be used in NiceCRUD and NiceCRUDCard alike"""
 
     config: NiceCRUDConfig
-    basemodel: Type[T]
+    basemodeltype: Type[T]
     included_fields: list[tuple[str, FieldInfo]]
 
     def __init__(self) -> None:
@@ -89,7 +90,7 @@ class FieldHelperMixin(Generic[T]):
     def get_included_fields(self):
         """Get a list of fields to be included in the card"""
         self.included_fields = []
-        for field_name, field_info in self.basemodel.model_fields.items():
+        for field_name, field_info in self.basemodeltype.model_fields.items():
             if not self.is_excluded(field_name=field_name, field_info=field_info):
                 self.included_fields.append((field_name, field_info))
 
@@ -98,7 +99,7 @@ class FieldHelperMixin(Generic[T]):
         return max((int(len(self.included_fields) / 4), 1))
 
     def field_exists(self, field_name: str):
-        return field_name in self.basemodel.model_fields.keys()
+        return field_name in self.basemodeltype.model_fields.keys()
 
 
 class NiceCRUDCard(FieldHelperMixin, Generic[T]):
@@ -119,9 +120,12 @@ class NiceCRUDCard(FieldHelperMixin, Generic[T]):
         config: NiceCRUDConfig = NiceCRUDConfig(),
         id_editable: bool = True,
         on_change_extra: Optional[Callable[[str, T], None]] = None,
+        on_validation_result: Callable[[bool], None] = lambda x: None,
+        **kwargs,
     ):
         self.item: T = item
         self.config = config
+        self.config.update(kwargs)
         self.id_editable = id_editable
         self.errormsg = dict(msg="", visible=False)
         self.select_options: Callable[[str, T], Awaitable[dict]]
@@ -134,8 +138,9 @@ class NiceCRUDCard(FieldHelperMixin, Generic[T]):
 
             self.select_options = default_select_options
         self.on_change_extra = on_change_extra
+        self.on_validation_result = on_validation_result
         self.subitem_dialog = None
-        self.basemodel = type(item)
+        self.basemodeltype = type(item)
         super().__init__()
         # As create_card needs to be async, use timer to run it in the nicegui
         # asyncio event loop
@@ -148,7 +153,10 @@ class NiceCRUDCard(FieldHelperMixin, Generic[T]):
         try:
             self.errormsg["msg"] = ""
             self.errormsg["visible"] = False
+            if isinstance(getattr(self.item, attr), int):
+                value = None if value is None else int(value)
             setattr(self.item, attr, value)
+            val_result = True
         except ValidationError as e:
             self.errormsg["msg"] = e.errors()[0]["msg"]
             self.errormsg["msg"] = re.sub(r"^Value error, ", "", self.errormsg["msg"])
@@ -158,22 +166,23 @@ class NiceCRUDCard(FieldHelperMixin, Generic[T]):
                 self.errormsg["msg"],
             )
             self.errormsg["visible"] = True
+            val_result = False
         if self.on_change_extra is not None:
-            log.debug(f"extra change triggered with {attr=}{value=}")
-            # self.on_change_extra(attr, self.item)
+            self.on_change_extra(attr, self.item)
+        self.on_validation_result(val_result)
         if refresh:
             self.create_card.refresh()
 
     @ui.refreshable
     async def create_card(self):
+        # with ui.column().classes("w-full"):
         grid_class = "gap-1 gap-x-6 w-full items-center"
         columns = "minmax(100px,max-content) 1fr " * self.column_count
         with ui.grid(columns=columns).classes(grid_class):
             for field_name, field_info in self.included_fields:
+                if field_name == self.config.id_field and not self.id_editable:
+                    continue
                 await self.get_input(field_name, field_info)
-        # TODO: Improve the display of the error message in nicecrud, the
-        # validation error does not show, which element is to blame and also
-        # changes the shape of the dialog
         errlabel, errrow = show_error("")
         errlabel.bind_text_from(self.errormsg, "msg")
         errrow.bind_visibility_from(self.errormsg, "visible").classes("w-full")
@@ -349,9 +358,9 @@ class NiceCRUDCard(FieldHelperMixin, Generic[T]):
         with ui.dialog() as self.subitem_dialog, ui.card():
             title = item.model_config.get("title")
             if title is not None:
-                ui.label(title).classes("subheading")
+                ui.label(title).classes("text-lg")
             with ui.row():
-                NiceCRUDCard(item, None, config=self.config)
+                NiceCRUDCard(item=item, config=self.config)
 
 
 class NiceCRUD(FieldHelperMixin[T], Generic[T]):
@@ -362,11 +371,6 @@ class NiceCRUD(FieldHelperMixin[T], Generic[T]):
         The BaseModel class has to be configured to validate_assignment:
         `model_dict = ConfigDict(validate_assignment=True)`
 
-        ```python
-        mybml = [MyPydanticModel(somethin=2), MyPydanticModel(somethin=3)]
-        ng = NiceCRUD(basemodellist=mybml)
-        ```
-
         Inherit from this class to adapt to your usecase. Overload the methods
         `create`, `update` and `delete`. These methods should return None and
         raise KeyError if the id_field of the updated or deleted item cannot be
@@ -375,21 +379,24 @@ class NiceCRUD(FieldHelperMixin[T], Generic[T]):
 
     def __init__(
         self,
-        basemodel: Type[T] = BaseModel,
-        basemodellist: list[T] = [],
+        basemodeltype: Optional[Type[T]] = None,
+        basemodels: list[T] = [],
+        id_field: Optional[str] = None,
         config: NiceCRUDConfig | dict = NiceCRUDConfig(),
         **kwargs,  # Config parameters can be given by keyword arguments as well
     ):
-        self.basemodel = basemodel
-        self.basemodellist = basemodellist
+        self.basemodeltype = basemodeltype or self.infer_basemodeltype(basemodels)
         if isinstance(config, dict):
             config = NiceCRUDConfig(**config, **kwargs)
         self.config: NiceCRUDConfig = config
         self.config.update(kwargs)
+        if id_field is not None:
+            self.config.id_field = id_field
+        self.basemodels = basemodels
         super().__init__()
         self.rows: list[dict] = []
         self.columns: list[dict] = []
-        self.check()
+        self.assert_id_field_in_model()
         self.create_rows_and_cols()
         self.item_dialog: ui.dialog
         self.button_row: ui.row
@@ -397,6 +404,20 @@ class NiceCRUD(FieldHelperMixin[T], Generic[T]):
         self.add_resize_trigger()
         self.get_button_row()
         self.show_table()  # type: ignore
+
+    @classmethod
+    def infer_basemodeltype(cls, basemodels: list[T] | dict[str, T]) -> Type[T]:
+        x = cls.getfirst(basemodels)
+        return type(x)
+
+    @staticmethod
+    def getfirst(basemodels: list[T] | dict[str, T]) -> T:
+        if isinstance(basemodels, list):
+            return basemodels[0]
+        elif isinstance(basemodels, dict):
+            return next(iter(basemodels.values()))
+        else:
+            raise KeyError("No basemodels given")
 
     def add_resize_trigger(self):
         """When the width of the browser window is reduced, the event "smaller"
@@ -422,15 +443,18 @@ class NiceCRUD(FieldHelperMixin[T], Generic[T]):
         </script>
         """)
 
-    def check(self):
-        if self.config.id_field not in self.basemodel.model_fields.keys():
+    def assert_id_field_in_model(self):
+        if self.config.id_field not in self.basemodeltype.model_fields.keys():
             raise KeyError(f"id field {self.config.id_field} not in basemodel")
+        if not self.basemodeltype.model_config.get("validate_assignment"):
+            log.info(f"Set validate_assignment for {self.basemodeltype.__name__} for nicecrud validation")
+            self.basemodeltype.model_config["validate_assignment"] = True
 
     @classmethod
     async def from_http_request(
         cls,
         url: str = "http://localhost:8000/something",
-        basemodel: type[BaseModel] = BaseModel,
+        basemodeltype: type[BaseModel] = BaseModel,
         config: NiceCRUDConfig = NiceCRUDConfig(),
         **kwargs,
     ):
@@ -441,30 +465,38 @@ class NiceCRUD(FieldHelperMixin[T], Generic[T]):
             ui.notify(f"Invalid response from {url}", color="negative")
             return None
         try:
-            basemodellist = [basemodel(**data) for data in listofdicts]
+            basemodels = [basemodeltype(**data) for data in listofdicts]
         except ValidationError as e:
             ui.notify(f"Invalid data from {url}", color="negative")
             log.error(f"ValidationError: {str(e)}")
             return None
-        res = cls(basemodel, basemodellist, config=config, **kwargs)
+        res = cls(basemodeltype=basemodeltype, basemodels=basemodels, config=config, **kwargs)
         return res
+
+    @property
+    def id_label(self):
+        if self.config.id_label is not None:
+            return self.config.id_label
+        if self.config.id_field is None:
+            return "ID:"
+        id_title = self.basemodeltype.model_fields[self.config.id_field].title
+        if id_title is not None:
+            return id_title + ":"
+        title = self.basemodeltype.model_config.get("title")
+        if title is not None:
+            return title + " ID:"
+        return "ID:"
 
     def create_rows_and_cols(self):
         """Create the list of dicts self.rows and self.columns that are used for nicegui table"""
-        rows, columns = basemodellist_to_rows_and_cols(self.basemodellist)
+        rows, columns = basemodellist_to_rows_and_cols(self.basemodels)
         columns = [
             c | dict(sortable=True)
             for c in columns
             if c["name"] != self.config.id_field and c["name"] not in self.config.additional_exclude
         ]
         for r in rows:
-            id_label = self.basemodel.model_fields[self.config.id_field].title
-            r["obj_id"] = (
-                (self.config.id_label or ((id_label or "ID") + ":"))
-                + " <b>"
-                + html.escape(str(r[self.config.id_field]))
-                + "</b>"
-            )
+            r["obj_id"] = self.id_label + " <b>" + html.escape(str(r[self.config.id_field])) + "</b>"
             for k, v in r.items():
                 # loop over the fields in each row
                 if not v and v != 0:
@@ -473,14 +505,14 @@ class NiceCRUD(FieldHelperMixin[T], Generic[T]):
         self.columns = columns
 
     def get_by_id(self, id) -> Optional[T]:
-        for m in self.basemodellist:
+        for m in self.basemodels:
             if getattr(m, self.config.id_field) == id:
                 return m
         return None
 
     @property
     def defaults_given(self):
-        for k, v in self.basemodel.model_fields.items():
+        for k, v in self.basemodeltype.model_fields.items():
             if v.exclude:
                 continue
             if v.is_required():
@@ -506,7 +538,7 @@ class NiceCRUD(FieldHelperMixin[T], Generic[T]):
             ui.notify("Error adding model: " + str(e), color="negative")
         else:
             log.debug(f"Added {model_id=}")
-            ui.notify(f"Added {self.basemodel.model_config.get("title")} with new ID: {model_id}")
+            ui.notify(f"Added {self.basemodeltype.model_config.get("title")} with new ID: {model_id}")
         finally:
             self.create_rows_and_cols()
             self.item_dialog.close()
@@ -528,7 +560,7 @@ class NiceCRUD(FieldHelperMixin[T], Generic[T]):
             self.get_item_dialog(model)
             self.item_dialog.open()
         except NotImplementedError as er:
-            ui.notify(f"The {self.basemodel.__name__} objects have not template", color="negative")
+            ui.notify(f"The {self.basemodeltype.__name__} objects have not template", color="negative")
             log.error(str(er))
 
     async def save_update(self, model: T):
@@ -540,7 +572,7 @@ class NiceCRUD(FieldHelperMixin[T], Generic[T]):
             ui.notify(f"Error deleting: {str(e)}", color="negative")
         else:
             obj_id: str = getattr(model, self.config.id_field)
-            title = self.basemodel.model_config.get("title")
+            title = self.basemodeltype.model_config.get("title") or self.config.id_label
             log.debug(f"Updated {obj_id=}")
             ui.notify(f"Updated {title} {obj_id}")
         finally:
@@ -562,7 +594,7 @@ class NiceCRUD(FieldHelperMixin[T], Generic[T]):
             log.error(f"Deletion operation failed for object with id: {obj_id} {str(er)}")
             ui.notify(f"Error deleting: {str(er)}", color="negative")
         else:
-            title = self.basemodel.model_config.get("title")
+            title = self.basemodeltype.model_config.get("title")
             ui.notify(f"Deleted {title} {obj_id}")
         finally:
             self.create_rows_and_cols()
@@ -592,21 +624,21 @@ class NiceCRUD(FieldHelperMixin[T], Generic[T]):
 
     async def create(self, model: T):
         """Add an item: Extend or this method and include database commands"""
-        if getattr(model, self.config.id_field) in [getattr(m, self.config.id_field) for m in self.basemodellist]:
+        if getattr(model, self.config.id_field) in [getattr(m, self.config.id_field) for m in self.basemodels]:
             raise KeyError(
-                f"{self.basemodel.model_config.get('title', self.basemodel.__name__)}"
+                f"{self.basemodeltype.model_config.get('title', self.basemodeltype.__name__)}"
                 f"({self.config.id_label}={getattr(model, self.config.id_field)}) already exists"
             )
-        self.basemodellist.append(model)
+        self.basemodels.append(model)
 
     async def update(self, model: T):
         """Update an item: Extend or overwrite this method and include database commands"""
         exists = False
-        for m in self.basemodellist:
+        for m in self.basemodels:
             if getattr(m, self.config.id_field) == getattr(model, self.config.id_field):
                 if exists:
                     raise KeyError(
-                        f"{self.basemodel.model_config.get('title', self.basemodel.__name__)}"
+                        f"{self.basemodeltype.model_config.get('title', self.basemodeltype.__name__)}"
                         f"({self.config.id_label}={getattr(model, self.config.id_field)}) has duplicates"
                     )
                 exists = True
@@ -614,21 +646,21 @@ class NiceCRUD(FieldHelperMixin[T], Generic[T]):
                     setattr(m, field, value)
         if not exists:
             raise KeyError(
-                f"{self.basemodel.model_config.get('title', self.basemodel.__name__)}"
+                f"{self.basemodeltype.model_config.get('title', self.basemodeltype.__name__)}"
                 f"({self.config.id_label}={getattr(model, self.config.id_field)}) does not exist"
             )
 
     async def delete(self, obj_id):
         """Delete item: Extend or overwrite this method and include database commands"""
         exists = False
-        for b in self.basemodellist:
+        for b in self.basemodels:
             if getattr(b, self.config.id_field) == obj_id:
                 exists = True
-                self.basemodellist.remove(b)
+                self.basemodels.remove(b)
                 break
         if not exists:
             raise KeyError(
-                f"{self.basemodel.model_config.get('title', self.basemodel.__name__)}"
+                f"{self.basemodeltype.model_config.get('title', self.basemodeltype.__name__)}"
                 f"({self.config.id_label}={obj_id}) does not exist"
             )
 
@@ -640,9 +672,9 @@ class NiceCRUD(FieldHelperMixin[T], Generic[T]):
         log.debug(f"Getting default select_options for {field_name=}")
         options = dict()
         if not self.field_exists(field_name):
-            log.error(f"Trying to get select options for {field_name=}, non-exist on {self.basemodel}")
+            log.error(f"Trying to get select options for {field_name=}, non-exist on {self.basemodeltype}")
             return dict()
-        for m in self.basemodellist:
+        for m in self.basemodels:
             options[getattr(m, field_name)] = getattr(m, field_name)
         return options
 
@@ -657,8 +689,11 @@ class NiceCRUD(FieldHelperMixin[T], Generic[T]):
         """Show the grid of elements"""
         with ui.card().classes("w-full sm:w-full"):
             if self.config.heading:
-                ui.label(self.config.heading).classes("heading")
-            search_input = ui.input(label=self.config.search_input_label).classes("card-content w-full")
+                ui.label(self.config.heading).classes(self.config.heading_classes)
+            search_input = ui.input(
+                label=self.config.search_input_label
+                or ("Search " + (self.basemodeltype.model_config.get("title") or "table"))
+            ).classes("card-content w-full")
             self.table = (
                 ui.table(columns=self.columns, rows=self.rows, row_key="obj_id", selection="multiple")
                 .props("grid")
@@ -708,31 +743,51 @@ class NiceCRUD(FieldHelperMixin[T], Generic[T]):
             ui.button(text=self.config.add_button_text, icon="add", on_click=self.handle_create)
             ui.button(text=self.config.delete_button_text, icon="delete", on_click=self.handle_delete_selected)
 
+    @property
+    def new_item_dialog_heading(self):
+        if self.config.new_item_dialog_heading is not None:
+            return self.config.new_item_dialog_heading
+        title = self.basemodeltype.model_config.get("title")
+        if title is not None:
+            return "Add " + title
+        else:
+            return "Add item"
+
+    @property
+    def update_item_dialog_heading(self):
+        if self.config.update_item_dialog_heading is not None:
+            return self.config.update_item_dialog_heading
+        title = self.basemodeltype.model_config.get("title")
+        if title is not None:
+            return "Update " + title
+        else:
+            return "Update item"
+
     def get_item_dialog(self, item: Optional[T] = None):
         if self.column_count > 1:
             props = "full-width"
         else:
             props = ""
-        with ui.dialog().props(props) as self.item_dialog, ui.card():
+        with ui.dialog().props(props) as self.item_dialog, ui.card().classes("w-full"):
             if item is None:
                 edit = False
-                ui.label(self.config.new_item_dialog_heading).classes("subheading")
+                ui.label(self.new_item_dialog_heading).classes(self.config.subheading_classes)
                 if self.defaults_given:
-                    item = self.basemodel()
-                elif len(self.basemodellist) > 0:
+                    item = self.basemodeltype()
+                elif len(self.basemodels) > 0:
                     log.debug(
-                        f"model {self.basemodel} does not contain defaults for"
+                        f"model {self.basemodeltype} does not contain defaults for"
                         "all attributes, choose first element as reference"
                     )
-                    item = self.basemodellist[0].model_copy(deep=True)
+                    item = self.basemodels[0].model_copy(deep=True)
                     if isinstance(getattr(item, self.config.id_field), str):
                         setattr(
                             item,
                             self.config.id_field,
-                            "New " + (self.basemodel.model_config.get("title", "item") or "item"),
+                            "New " + (self.basemodeltype.model_config.get("title", "item") or "item"),
                         )
                 else:
-                    raise NotImplementedError(f"No template for {self.basemodel.__name__}")
+                    raise NotImplementedError(f"No template for {self.basemodeltype.__name__}")
 
                 async def save_action():
                     if item is None:
@@ -740,12 +795,15 @@ class NiceCRUD(FieldHelperMixin[T], Generic[T]):
                     await self.save_create(item)
             else:
                 edit = True
-                ui.label(self.config.update_item_dialog_heading).classes("subheading")
+                ui.label(self.update_item_dialog_heading + " " + str(getattr(item, self.config.id_field))).classes(
+                    self.config.subheading_classes
+                )
 
                 async def save_action():
                     await self.save_update(item)
 
             # Card with all input elements
+            val_result = dict(val_result=True)
             with ui.row().classes("w-full"):
                 NiceCRUDCard(
                     item,
@@ -753,6 +811,7 @@ class NiceCRUD(FieldHelperMixin[T], Generic[T]):
                     config=self.config,
                     id_editable=not edit,
                     on_change_extra=self.on_change_extra,
+                    on_validation_result=lambda x: val_result.update(dict(val_result=x)),
                 )
 
             # Save and Cancel buttons
@@ -768,4 +827,4 @@ class NiceCRUD(FieldHelperMixin[T], Generic[T]):
                         "Save",
                         icon="check_circle",
                         on_click=save_action,
-                    ).classes("w-full")
+                    ).classes("w-full").bind_enabled_from(val_result, "val_result")

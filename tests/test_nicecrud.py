@@ -1,137 +1,74 @@
-from typing import Literal, Optional, Union
+import pytest
+from pydantic import BaseModel, Field
 
-from nicegui import ui
-from pydantic import (BaseModel, ConfigDict, Field, SerializationInfo,
-                      field_serializer, field_validator, model_serializer,
-                      model_validator)
-
-from nicecrud import FieldOptions, NiceCRUD, NiceCRUDCard
-from nicecrud.mylog import get_log
-
-log = get_log("mvp")
+from nicecrud.nicecrud import NiceCRUD, NiceCRUDConfig
 
 
-class Material(BaseModel, title="Material"):
-    material: Literal["leather", "canvas", "patent leather"] = Field(default="canvas", title="Top material")
-    color: Literal["black", "maroon", "navy"] = Field(default="black", max_length=30, title="Color")
-
-    @model_serializer(mode="wrap")
-    def gui(self, default_ser, info=SerializationInfo):
-        context = info.context  # pyright: ignore[reportAttributeAccessIssue]
-        if context and context.get("gui"):
-            return f"{self.color} {self.material}"
-        return default_ser(self)
+class MockModel(BaseModel):
+    id: int = Field(...)
+    name: str = Field(...)
 
 
-class ActiveWear(BaseModel, title="Outdoor"):
-    performance_materials: str = Field(default="breathable fabric", title="Performance Materials")
-    shock_absorption: bool = Field(default=True, title="Shock Absorption")
-
-    @model_serializer(mode="wrap")
-    def gui(self, default_ser, info=SerializationInfo):
-        context = info.context  # pyright: ignore[reportAttributeAccessIssue]
-        if context and context.get("gui"):
-            return f"{self.performance_materials} "
-        return default_ser(self)
+@pytest.fixture
+def mock_model_list():
+    return [MockModel(id=1, name="Item 1"), MockModel(id=2, name="Item 2")]
 
 
-class OfficeWear(BaseModel, title="Office"):
-    note: str = Field(default="very strict", title="Notes")
-    formality: Literal["Business casual", "Business attire"] = Field(default="Business casual", title="Formality")
-
-    @model_serializer(mode="wrap")
-    def gui(self, default_ser, info=SerializationInfo):
-        context = info.context  # pyright: ignore[reportAttributeAccessIssue]
-        if context and context.get("gui"):
-            return f"{self.formality} "
-        return default_ser(self)
+@pytest.fixture
+def empty_model_list():
+    return []
 
 
-class NiceShoes(BaseModel):
-    name: str = Field(default="unknown", max_length=30, title="Name")
-    size: int = Field(..., lt=49, gt=23, json_schema_extra=FieldOptions(input_type="slider", step=2).model_dump())
-    price: float = Field(..., json_schema_extra=FieldOptions(step=2).model_dump(), lt=100, gt=2.20)
-    style: Literal["sneakers", "heels", "ballet flats", "boots"] = Field(default="ballet flats", title="Shoe style")
-    heelheight: Optional[float] = Field(default=None, title="height of heels")
-    brand: Literal["Nike", "Adidas", "Converse", "Tamaris"] = Field(
-        ..., title="Brand", description="<div>Only the <b>finest</b> brands<div>"
-    )
-    availsizes: list[int] = Field(default=[36, 39, 42], title="Available sizes")
-    state: list[str] = Field(default=["used", "new"], title="Available states")
-    avail: bool = Field(default=True, title="available?", json_schema_extra=FieldOptions(readonly=True).model_dump())
-    winter: bool = Field(default=True, title="Winter collection")
-    material: Material = Field(default_factory=Material, title="Material")
-    occasion: Union[ActiveWear, OfficeWear] = Field(default_factory=OfficeWear, title="Occasion")
-
-    model_config: ConfigDict = ConfigDict(validate_assignment=True, title="Shoe")
-
-    @field_serializer("occasion")
-    def occasion_show(self, v: Union[ActiveWear, OfficeWear], info: SerializationInfo):
-        context = info.context
-        if context and context.get("gui"):
-            return v.__class__.__name__
-        return v
-
-    @field_serializer("winter")
-    def wintrshower(self, v: str, info: SerializationInfo):
-        context = info.context
-        if context and context.get("gui"):
-            return "Yes, in winter collection" if v else "Not in winter collection "
-        return v
-
-    @field_serializer("avail")
-    def availshow(self, v: bool, info: SerializationInfo):
-        context = info.context
-        if context and context.get("gui"):
-            return "yes" if v else "no"
-        return v
-
-    @field_validator("size")
-    @classmethod
-    def validate_size(cls, v):
-        if not isinstance(v, int):
-            raise ValueError("only integer Numbers")
-        if v > 45:
-            raise ValueError("Your feet a too big")
-        return v
-
-    @model_validator(mode="before")
-    @classmethod
-    def only_for_heels(cls, v):
-        if v.get("style") != "heels" and v.get("heelheight") is not None:
-            raise ValueError("Only heels should have heelheight")
-        if v.get("style") == "sneakers":
-            v["brand"] = "Adudis"
-        return v
+@pytest.fixture
+def nicecrud_config():
+    return NiceCRUDConfig(id_field="id")
 
 
-def test_basemodel_annotation():
-    x: NiceShoes = NiceShoes(name="Chucks", size=41, price=2.50, brand="Adidas")
-    for k, v in x.model_fields.items():
-        typ = v.annotation
-        if k == "name":
-            assert typ == str, "Expect that basemodel annotation can be used to get field types"
+@pytest.fixture
+def nicecrud_instance(mock_model_list, nicecrud_config):
+    return NiceCRUD(basemodeltype=MockModel, basemodels=mock_model_list, config=nicecrud_config)
 
 
-@ui.page("/")
-async def nicecrudtest():
-    mods = [
-        NiceShoes(name="Chucks", size=41, price=2.50, brand="Converse"),
-        NiceShoes(name="AirJordan", size=41, price=2.50, brand="Nike"),
-    ]
-    NiceCRUD(
-        basemodel=NiceShoes,
-        basemodellist=mods,
-        id_label="Shoe model:",
-        id_field="name",
-    )
+def test_inferbasemodel(mock_model_list):
+    nn = NiceCRUD(basemodels=mock_model_list, id_field="id")
+    assert nn.basemodeltype == MockModel, "BaseModel typ is inferred from first element if necessary"
 
 
-@ui.page("/shoes")
-async def nicecrud_card():
-    x: NiceShoes = NiceShoes(name="Chucks", size=41, price=2.50, brand="Converse")
-    NiceCRUDCard(item=x)
+def test_nicecrud_initialization(nicecrud_instance):
+    assert nicecrud_instance.config.id_field == "id"
+    assert isinstance(nicecrud_instance, NiceCRUD)
+    assert len(nicecrud_instance.basemodels) == 2
 
 
-if __name__ in {"__main__", "__mp_main__"}:
-    ui.run()
+@pytest.mark.asyncio
+async def test_create_item(nicecrud_instance):
+    new_item = MockModel(id=3, name="Item 3")
+    await nicecrud_instance.create(new_item)
+    assert len(nicecrud_instance.basemodels) == 3
+    assert nicecrud_instance.basemodels[-1] == new_item
+
+
+@pytest.mark.asyncio
+async def test_update_item(nicecrud_instance):
+    update_item = MockModel(id=1, name="Updated Item 1")
+    await nicecrud_instance.update(update_item)
+    assert nicecrud_instance.basemodels[0].name == "Updated Item 1"
+
+
+@pytest.mark.asyncio
+async def test_delete_item(nicecrud_instance):
+    await nicecrud_instance.delete(1)
+    assert len(nicecrud_instance.basemodels) == 1
+    assert not any(item.id == 1 for item in nicecrud_instance.basemodels)
+
+
+def test_get_by_id(nicecrud_instance):
+    item = nicecrud_instance.get_by_id(1)
+    assert item is not None
+    assert item.name == "Item 1"
+
+
+def test_field_exclusions(nicecrud_instance):
+    model = MockModel.model_fields["id"]
+    excluded = nicecrud_instance.is_excluded("id", model)
+    assert not excluded

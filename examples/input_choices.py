@@ -61,7 +61,7 @@ class NiceShoes(BaseModel):
         ..., title="Brand", description="<div>Only the <b>finest</b> brands<div>"
     )
     availsizes: list[int] = Field(default=[36, 39, 42], title="Available sizes")
-    state: list[str] = Field(default=["used", "new"], title="Available states")
+    available_states: list[str] = Field(default=["used", "new"], title="Available States")
     avail: bool = Field(default=True, title="available?", json_schema_extra=FieldOptions(readonly=True).model_dump())
     winter: bool = Field(default=True, title="Winter collection")
     material: Material = Field(default_factory=Material, title="Material")
@@ -105,7 +105,7 @@ class NiceShoes(BaseModel):
         if v.get("style") != "heels" and v.get("heelheight") is not None:
             raise ValueError("Only heels should have heelheight")
         if v.get("style") == "sneakers":
-            v["brand"] = "Adudis"
+            v["brand"] = "Adidas"
         return v
 
 
@@ -120,12 +120,12 @@ def test_basemodel_annotation():
 @ui.page("/")
 async def nicecrudtest():
     mods = [
-        NiceShoes(name="Chucks", size=41, price=2.50, brand="Converse"),
-        NiceShoes(name="AirJordan", size=41, price=2.50, brand="Nike"),
+        NiceShoes(name="Chucks", size=41, price=2.50, brand="Converse", style="sneakers"),
+        NiceShoes(name="AirJordan", size=41, price=2.50, brand="Nike", style="sneakers"),
     ]
     NiceCRUD(
-        basemodel=NiceShoes,
-        basemodellist=mods,
+        basemodeltype=NiceShoes,
+        basemodels=mods,
         id_label="Shoe model:",
         id_field="name",
     )
