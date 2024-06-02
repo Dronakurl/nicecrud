@@ -4,7 +4,7 @@ from typing import Literal
 from nicegui import ui
 from pydantic import BaseModel, Field, model_validator
 
-from nicecrud import NiceCRUD, NiceCRUDConfig
+from niceguicrud import NiceCRUD, NiceCRUDConfig
 
 log = logging.getLogger("nicecrud")
 log.setLevel(logging.DEBUG)

@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field
 
-from nicecrud.nicecrud import NiceCRUD, NiceCRUDCard, NiceCRUDConfig
+from niceguicrud.nicecrud import NiceCRUD, NiceCRUDCard, NiceCRUDConfig
 
 
 class Bicycle(BaseModel):

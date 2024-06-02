@@ -6,7 +6,7 @@ from pydantic import (BaseModel, ConfigDict, Field, SerializationInfo,
                       field_serializer, field_validator, model_serializer,
                       model_validator)
 
-from nicecrud import FieldOptions, NiceCRUD, NiceCRUDCard
+from niceguicrud import FieldOptions, NiceCRUD, NiceCRUDCard
 
 log = logging.getLogger("nicecrud")
 log.setLevel(logging.DEBUG)

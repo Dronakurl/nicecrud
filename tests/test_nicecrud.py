@@ -1,7 +1,7 @@
 import pytest
 from pydantic import BaseModel, Field
 
-from nicecrud.nicecrud import NiceCRUD, NiceCRUDConfig
+from niceguicrud.nicecrud import NiceCRUD, NiceCRUDConfig
 
 
 class MockModel(BaseModel):

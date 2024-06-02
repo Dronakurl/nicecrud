@@ -3,8 +3,7 @@ import logging
 from nicegui import ui
 from pydantic import BaseModel, Field
 
-from nicecrud import NiceCRUD
-from nicecrud.nicecrud import FieldOptions
+from niceguicrud import FieldOptions, NiceCRUD
 
 log = logging.getLogger("nicecrud")
 log.setLevel(logging.DEBUG)

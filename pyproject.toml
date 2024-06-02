@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "nicecrud"
+name = "niceguicrud"
 version = "0.1.0"
 description = "Edit your pydantic models with a nice GUI - CRUD Create Update Replace Delete"
 authors = ["Dronakurl <tbo73oij5@mozmail.com>"]

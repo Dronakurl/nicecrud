@@ -22,8 +22,10 @@ Taken from the [input_choices](/examples/input_choices.py) example:
 
 To install NiceCRUD, use pip:
 
+<!-- pip install 'git+https://github.com/Dronakurl/nicecrud.git'-->
+
 ```bash
-pip install 'git+https://github.com/Dronakurl/nicecrud.git'
+pip install niceguicrud
 ```
 
 ## Quick Start
@@ -35,7 +37,7 @@ Here is a very basic example:
 from nicegui import ui
 from pydantic import BaseModel, Field
 
-from nicecrud import NiceCRUD
+from niceguicrud import NiceCRUD
 
 
 class MyModel(BaseModel, title="User"):

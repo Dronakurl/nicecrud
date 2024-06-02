@@ -1,9 +1,9 @@
 import pytest
 from pydantic import BaseModel, Field
 
-from nicecrud.basemodel_to_table import (basemodel_to_columns,
-                                         basemodellist_to_rows,
-                                         basemodellist_to_rows_and_cols)
+from niceguicrud.basemodel_to_table import (basemodel_to_columns,
+                                            basemodellist_to_rows,
+                                            basemodellist_to_rows_and_cols)
 
 
 class Model(BaseModel):
