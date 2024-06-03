@@ -698,7 +698,6 @@ class NiceCRUD(FieldHelperMixin[T], Generic[T]):
                 ui.table(columns=self.columns, rows=self.rows, row_key="obj_id", selection="multiple")
                 .props("grid")
                 .props(f"no-data-label='{self.config.no_data_label}'")
-                # .props("card-container-class='bg-slate-700'")
                 .classes("w-full")
             ).bind_filter_from(search_input, "value")
 

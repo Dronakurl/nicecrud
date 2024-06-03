@@ -7,7 +7,7 @@ readme = "README.md"
 license = "MIT"
 
 [tool.poetry.dependencies]
-python = "^3.12"
+python = "^3.11"
 nicegui = "^1.4.26"
 
 [tool.poetry.group.dev.dependencies]
