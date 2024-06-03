@@ -10,7 +10,7 @@ from typing import Awaitable, Callable, Generic, Literal, Optional, Type, TypeVa
 import annotated_types
 import httpx
 from nicegui import events, ui
-from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from pydantic import BaseModel, Field, ValidationError
 from pydantic.fields import FieldInfo
 
 from .basemodel_to_table import basemodellist_to_rows_and_cols
@@ -42,7 +42,7 @@ def NiceCRUDField(
     return Field(*args, **kwargs, title=title, json_schema_extra=json_schema_extra)
 
 
-class NiceCRUDConfig(BaseModel, title="Options for a NiceCRUD instance"):
+class NiceCRUDConfig(BaseModel, title="Options for a NiceCRUD instance", validate_assignment=True):
     """General nicecrud config. This is put in a BaseModel objects so it is
     easier to use the editor to manage options"""
 
@@ -53,7 +53,6 @@ class NiceCRUDConfig(BaseModel, title="Options for a NiceCRUD instance"):
     heading: str | None = None
     add_button_text: str = "Add new item"
     delete_button_text: str = "Delete selected items"
-    model_config: ConfigDict = ConfigDict(validate_assignment=True)
     new_item_dialog_heading: Optional[str] = None
     update_item_dialog_heading: Optional[str] = None
     additional_exclude: list[str] = Field(
@@ -140,7 +139,7 @@ class NiceCRUDCard(FieldHelperMixin, Generic[T]):
         config: NiceCRUDConfig = NiceCRUDConfig(),
         id_editable: bool = True,
         on_change_extra: Optional[Callable[[str, T], None]] = None,
-        on_validation_result: Callable[[bool], None] = lambda x: None,
+        on_validation_result: Callable[[bool], None] = lambda _: None,
         **kwargs,
     ):
         self.item: T = item
@@ -193,7 +192,7 @@ class NiceCRUDCard(FieldHelperMixin, Generic[T]):
             self.on_change_extra(attr, self.item)
         self.on_validation_result(val_result)
         if refresh:
-            self.create_card.refresh()
+            self.create_card.refresh()  # pyright: ignore
 
     @ui.refreshable
     async def create_card(self):
@@ -242,8 +241,10 @@ class NiceCRUDCard(FieldHelperMixin, Generic[T]):
         _step = None
         _input_type = None
         _readonly = False
+        _selections = None
         extra = field_info.json_schema_extra
         if extra:
+            assert isinstance(extra, dict)
             _step = extra.get("step")
             _input_type = extra.get("input_type")
             _readonly = extra.get("readonly", False)
@@ -509,7 +510,7 @@ class NiceCRUD(FieldHelperMixin[T], Generic[T]):
     @classmethod
     async def from_http_request(
         cls,
-        url: str = "http://localhost:8000/something",
+        url: str = "http://localhost:8000/something/",
         basemodeltype: type[BaseModel] = BaseModel,
         config: NiceCRUDConfig = NiceCRUDConfig(),
         **kwargs,

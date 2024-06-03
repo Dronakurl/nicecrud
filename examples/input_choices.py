@@ -4,7 +4,6 @@ from typing import Any, Literal, Optional, Union
 from nicegui import ui
 from pydantic import (
     BaseModel,
-    ConfigDict,
     Field,
     SerializationInfo,
     field_serializer,
@@ -63,7 +62,7 @@ class OfficeWear(BaseModel, title="Office"):
         return default_serializer(self)
 
 
-class NiceShoes(BaseModel):
+class NiceShoes(BaseModel, validate_assignment=True, title="Shoe"):
     name: str = Field(default="unknown", max_length=30, title="Name")
     size: int = Field(
         ..., lt=49, gt=23, json_schema_extra=FieldOptions(input_type="slider", step=2).model_dump()
@@ -110,8 +109,6 @@ class NiceShoes(BaseModel):
             selections={k: k for k in ("Dparcel", "WackyWagon", "GiggleFreight", "ZoomBoom")},
         ),
     )
-
-    model_config: ConfigDict = ConfigDict(validate_assignment=True, title="Shoe")
 
     @field_serializer("payment_options")
     def payment_show(self, v: list[str], info: SerializationInfo):
@@ -172,7 +169,7 @@ def test_basemodel_annotation():
     for k, v in x.model_fields.items():
         typ = v.annotation
         if k == "name":
-            assert typ == str, "Expect that basemodel annotation can be used to get field types"
+            assert typ is str, "Expect that basemodel annotation can be used to get field types"
 
 
 @ui.page("/")

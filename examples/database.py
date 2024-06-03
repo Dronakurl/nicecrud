@@ -1,3 +1,4 @@
+# pyright: reportIncompatibleMethodOverride=false
 import logging
 
 from nicegui import ui
