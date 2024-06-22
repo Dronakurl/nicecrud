@@ -423,7 +423,7 @@ class NiceCRUD(FieldHelperMixin[T], Generic[T]):
         """When the width of the browser window is reduced, the event "smaller"
         is emitted, "bigger" otherwise"""
         # TODO: Make the resize trigger in nicecrud more specific so it
-        # triggers when the table is not visibale in full.
+        # triggers when the table is not visible in full.
         # https://www.javascripttutorial.net/dom/css/check-if-an-element-is-visible-in-the-viewport/
         ui.add_head_html("""
         <script>
@@ -512,7 +512,7 @@ class NiceCRUD(FieldHelperMixin[T], Generic[T]):
 
     @property
     def defaults_given(self):
-        for k, v in self.basemodeltype.model_fields.items():
+        for _, v in self.basemodeltype.model_fields.items():
             if v.exclude:
                 continue
             if v.is_required():
@@ -733,9 +733,9 @@ class NiceCRUD(FieldHelperMixin[T], Generic[T]):
 
         self.table.on("delete", self.handle_delete)
         self.table.on("edit", self.handle_update)
-        if False:
-            ui.on("smaller", lambda: self.table.props("grid"))
-            ui.on("bigger", lambda: self.table.props(remove="grid"))
+        # if False:
+        #     ui.on("smaller", lambda: self.table.props("grid"))
+        #     ui.on("bigger", lambda: self.table.props(remove="grid"))
 
     def get_button_row(self):
         with ui.row() as self.button_row:
