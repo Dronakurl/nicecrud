@@ -1,18 +1,18 @@
 [tool.poetry]
 name = "niceguicrud"
-version = "0.1.0"
+version = "0.1.2"
 description = "Edit your pydantic models with a nice GUI - CRUD Create Update Replace Delete"
 authors = ["Dronakurl <tbo73oij5@mozmail.com>"]
 readme = "README.md"
 license = "MIT"
 
 [tool.poetry.dependencies]
-python = "^3.11"
-nicegui = "^1.4.26"
+python = "^3.10"
+nicegui = "*"
 
 [tool.poetry.group.dev.dependencies]
-pytest = "^8.2.1"
-pytest-asyncio = "^0.23.7"
+pytest = "*"
+pytest-asyncio = "*"
 
 [tool.pytest.ini_options]
 addopts = [

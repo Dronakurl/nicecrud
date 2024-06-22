@@ -538,7 +538,7 @@ class NiceCRUD(FieldHelperMixin[T], Generic[T]):
             ui.notify("Error adding model: " + str(e), color="negative")
         else:
             log.debug(f"Added {model_id=}")
-            ui.notify(f"Added {self.basemodeltype.model_config.get("title")} with new ID: {model_id}")
+            ui.notify(f"Added {self.basemodeltype.model_config.get('title')} with new ID: {model_id}")
         finally:
             self.create_rows_and_cols()
             self.item_dialog.close()
