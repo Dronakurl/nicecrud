@@ -3,6 +3,7 @@ import logging
 import re
 import typing
 from functools import partial
+from types import UnionType
 from typing import (Awaitable, Callable, Generic, Literal, Optional, Type,
                     TypeVar, Union)
 
@@ -25,6 +26,7 @@ class FieldOptions(BaseModel, title="Options that can be set in each Field in js
     # NOTE: It would be nice to inherit from FieldInfo class
     step: Optional[float] = Field(default=None, title="Step size for numeric Fields")
     input_type: Optional[Literal["slider", "number", "select"]] = Field(default=None)
+    selections: dict[str, str] | None = Field(default=None, title="selections for input_type=select")
     readonly: Optional[bool] = Field(default=None)
     exclude: Optional[bool] = Field(default=None)
 
@@ -80,6 +82,7 @@ class FieldHelperMixin(Generic[T]):
         return (
             field_info.exclude
             or field_name in self.config.additional_exclude_submodels
+            or field_name in self.config.additional_exclude
             or (
                 field_info.json_schema_extra is not None
                 and isinstance(field_info.json_schema_extra, bool)
@@ -224,10 +227,11 @@ class NiceCRUDCard(FieldHelperMixin, Generic[T]):
             _step = extra.get("step")
             _input_type = extra.get("input_type")
             _readonly = extra.get("readonly", False)
+            _selections = extra.get("selections")
         _optional = False
         # Generate the UI elements
         ele = None
-        if typing.get_origin(typ) == Union:
+        if typing.get_origin(typ) in {Union, UnionType}:
             # Optional Fields
             if len(typing.get_args(typ)) > 1 and typing.get_args(typ)[1] == type(None):
                 typ = typing.get_args(typ)[0]
@@ -236,13 +240,17 @@ class NiceCRUDCard(FieldHelperMixin, Generic[T]):
             elif all([issubclass(x, BaseModel) for x in typing.get_args(typ)]):
                 _input_type = "basemodelswitcher"
         if _input_type == "select":
-            selections = await self.select_options(field_name, self.item)
-            if len(selections) == 0:
-                selections = {curval: curval}
-            log.debug(f"{field_name=}: selections = {selections}")
-            if curval not in selections and len(selections) > 0:
-                curval = next(iter(selections.keys()))
-            ele = ui.select(options=selections, value=curval, validation=validation)
+            if _selections is not None:
+                assert isinstance(_selections, dict)
+                select_options_dict: dict[str, str] = _selections  # type: ignore
+            else:
+                select_options_dict = await self.select_options(field_name, self.item)
+            if len(select_options_dict) == 0:
+                select_options_dict = {curval: curval}
+            log.debug(f"{field_name=}: selections = {select_options_dict}")
+            if curval not in select_options_dict and len(select_options_dict) > 0:
+                curval = next(iter(select_options_dict.keys()))
+            ele = ui.select(options=select_options_dict, value=curval, validation=validation)
         elif _input_type == "basemodelswitcher":
             typemapper = {x.__name__: x for x in typing.get_args(typ)}
             selections = {x.__name__: x.model_config.get("title", x.__name__) for x in typing.get_args((typ))}
@@ -665,7 +673,8 @@ class NiceCRUD(FieldHelperMixin[T], Generic[T]):
             )
 
     async def select_options(self, field_name: str, obj: T) -> dict:
-        """Get the select options for a field: Extend / Overwrite this method and include database commands
+        """Get the select options for a field: Extend / Overwrite this method
+        and include database commands
 
         By default, this just gives all the different occurrences in the list
         """
