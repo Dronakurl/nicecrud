@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "niceguicrud"
-version = "0.1.2"
+version = "0.1.3"
 description = "Edit your pydantic models with a nice GUI - CRUD Create Update Replace Delete"
 authors = ["Dronakurl <tbo73oij5@mozmail.com>"]
 readme = "README.md"
@@ -30,17 +30,13 @@ testpaths = ["tests"]
 line-length = 120
 exclude = ["**/__init__.py"]
 
-[tool.pyright]
+[tool.basedpyright]
 include = ["**/*.py"]
-exclude = ["**/__pycache__"]
+exclude = ["**/__pycache__", ".archiv/**"]
 ignore = ["**/__init__.py"]
-reportUnusedFunction = false
-reportUnusedVariable = false
+pythonVersion = "3.12"
+pythonPlatform = "Linux"
 reportUnusedImport = false
-useLibraryCodeForTypes = true
-reportUnnecessaryTypeIgnoreComment = true
-enableTypeIgnoreComments = true
-reportUndefinedVariable = false
 
 [tool.black]
 line-length = 120

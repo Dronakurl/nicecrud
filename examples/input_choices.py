@@ -1,5 +1,5 @@
 import logging
-from typing import Literal, Optional, Union
+from typing import Any, Literal, Optional, Union
 
 from nicegui import ui
 from pydantic import (BaseModel, ConfigDict, Field, SerializationInfo,
@@ -7,6 +7,7 @@ from pydantic import (BaseModel, ConfigDict, Field, SerializationInfo,
                       model_validator)
 
 from niceguicrud import FieldOptions, NiceCRUD, NiceCRUDCard
+from niceguicrud.nicecrud import NiceCRUDField
 
 log = logging.getLogger("nicecrud")
 log.setLevel(logging.DEBUG)
@@ -20,11 +21,11 @@ class Material(BaseModel, title="Material"):
     color: Literal["black", "maroon", "navy"] = Field(default="black", max_length=30, title="Color")
 
     @model_serializer(mode="wrap")
-    def gui(self, default_ser, info=SerializationInfo):
+    def gui(self, default_serializer, info=SerializationInfo):
         context = info.context  # pyright: ignore[reportAttributeAccessIssue]
         if context and context.get("gui"):
             return f"{self.color} {self.material}"
-        return default_ser(self)
+        return default_serializer(self)
 
 
 class ActiveWear(BaseModel, title="Outdoor"):
@@ -32,11 +33,11 @@ class ActiveWear(BaseModel, title="Outdoor"):
     shock_absorption: bool = Field(default=True, title="Shock Absorption")
 
     @model_serializer(mode="wrap")
-    def gui(self, default_ser, info=SerializationInfo):
+    def gui(self, default_serializer, info=SerializationInfo):
         context = info.context  # pyright: ignore[reportAttributeAccessIssue]
         if context and context.get("gui"):
             return f"{self.performance_materials} "
-        return default_ser(self)
+        return default_serializer(self)
 
 
 class OfficeWear(BaseModel, title="Office"):
@@ -44,11 +45,11 @@ class OfficeWear(BaseModel, title="Office"):
     formality: Literal["Business casual", "Business attire"] = Field(default="Business casual", title="Formality")
 
     @model_serializer(mode="wrap")
-    def gui(self, default_ser, info=SerializationInfo):
+    def gui(self, default_serializer, info=SerializationInfo):
         context = info.context  # pyright: ignore[reportAttributeAccessIssue]
         if context and context.get("gui"):
             return f"{self.formality} "
-        return default_ser(self)
+        return default_serializer(self)
 
 
 class NiceShoes(BaseModel):
@@ -66,8 +67,40 @@ class NiceShoes(BaseModel):
     winter: bool = Field(default=True, title="Winter collection")
     material: Material = Field(default_factory=Material, title="Material")
     occasion: Union[ActiveWear, OfficeWear] = Field(default_factory=OfficeWear, title="Occasion")
+    payment_options: list[str] = Field(
+        default_factory=list,
+        title="Payment Options",
+        json_schema_extra=FieldOptions(
+            input_type="multiselect",
+            selections={
+                k: k for k in ("paygroove", "flingfunds", "quixcoin", "bazookaPay", "fizzFinance", "glimmerGold")
+            },
+        ).model_dump(),
+    )
+    shipment_options: dict[str, Any] = NiceCRUDField(
+        default_factory=dict,
+        title="Shipment Options",
+        nicecrud_options=FieldOptions(
+            input_type="multiselect",
+            selections={k: k for k in ("Dparcel", "WackyWagon", "GiggleFreight", "ZoomBoom")},
+        ),
+    )
 
     model_config: ConfigDict = ConfigDict(validate_assignment=True, title="Shoe")
+
+    @field_serializer("payment_options")
+    def payment_show(self, v: list[str], info: SerializationInfo):
+        context = info.context
+        if context and context.get("gui"):
+            return ", ".join(v)
+        return v
+
+    @field_serializer("shipment_options")
+    def shipment_show(self, v: dict[str, Any], info: SerializationInfo):
+        context = info.context
+        if context and context.get("gui"):
+            return ", ".join(v.keys())
+        return v
 
     @field_serializer("occasion")
     def occasion_show(self, v: Union[ActiveWear, OfficeWear], info: SerializationInfo):
@@ -120,8 +153,22 @@ def test_basemodel_annotation():
 @ui.page("/")
 async def nicecrudtest():
     mods = [
-        NiceShoes(name="Chucks", size=41, price=2.50, brand="Converse", style="sneakers"),
-        NiceShoes(name="AirJordan", size=41, price=2.50, brand="Nike", style="sneakers"),
+        NiceShoes(
+            name="Chucks",
+            size=41,
+            price=2.50,
+            brand="Converse",
+            style="sneakers",
+            payment_options=["paygroove"],
+        ),
+        NiceShoes(
+            name="AirJordan",
+            size=41,
+            price=2.50,
+            brand="Nike",
+            style="sneakers",
+            shipment_options={"GiggleFreight": ["huh", 23]},
+        ),
     ]
     NiceCRUD(
         basemodeltype=NiceShoes,
@@ -138,4 +185,4 @@ async def nicecrud_card():
 
 
 if __name__ in {"__main__", "__mp_main__"}:
-    ui.run()
+    ui.run(title="NiceguiCRUD Showcase - Shoes", favicon="👞")

@@ -1,3 +1,4 @@
+import collections.abc
 import html
 import logging
 import re
@@ -23,16 +24,24 @@ log.addHandler(logging.NullHandler())
 class FieldOptions(BaseModel, title="Options that can be set in each Field in json_schema_extra"):
     """Options that can be set in each Field in json_schema_extra"""
 
-    # NOTE: It would be nice to inherit from FieldInfo class
     step: Optional[float] = Field(default=None, title="Step size for numeric Fields")
-    input_type: Optional[Literal["slider", "number", "select"]] = Field(default=None)
+    input_type: Optional[Literal["slider", "number", "select", "multiselect"]] = Field(default=None)
     selections: dict[str, str] | None = Field(default=None, title="selections for input_type=select")
     readonly: Optional[bool] = Field(default=None)
     exclude: Optional[bool] = Field(default=None)
 
 
+def NiceCRUDField(*args, title: str | None = None, nicecrud_options: FieldOptions | None = None, **kwargs):
+    json_schema_extra = nicecrud_options.model_dump() if nicecrud_options is not None else None
+    if "json_schema_extra" in kwargs:
+        log.warning("Use json_schema_extra *or* nicecrud_options with NiceCRUDField")
+        json_schema_extra = kwargs["json_schema_extra"] | json_schema_extra or dict()
+    return Field(*args, **kwargs, title=title, json_schema_extra=json_schema_extra)
+
+
 class NiceCRUDConfig(BaseModel, title="Options for a NiceCRUD instance"):
-    """General nicecrud config. This is put in a BaseModel objects so it is easier to use the editor to manage options"""
+    """General nicecrud config. This is put in a BaseModel objects so it is
+    easier to use the editor to manage options"""
 
     id_field: str = ""
     id_label: Optional[str] = None
@@ -46,22 +55,22 @@ class NiceCRUDConfig(BaseModel, title="Options for a NiceCRUD instance"):
     update_item_dialog_heading: Optional[str] = None
     additional_exclude: list[str] = Field(
         default_factory=list,
-        description="fields that should be excluded from the CRUD application additionally to those excluded in pydantic",
+        description="fields that should be excluded from the CRUD application"
+        "additionally to those excluded in pydantic",
     )
-    additional_exclude_submodels: list[str] = Field(
-        default_factory=list,
-        description="fields that should be excluded from the CRUD application in the submodel additionally ",
-    )
-    heading_classes: str = Field(default="text-xl font-bold", description="CSS (tailwind) classes for headings")
-    subheading_classes: str = Field(default="text-lg font-bold", description="CSS (tailwind) classes for subheadings")
+    class_heading: str = Field(default="text-xl font-bold", description="CSS (tailwind) classes for headings")
+    class_subheading: str = Field(default="text-lg font-bold", description="CSS (tailwind) classes for subheadings")
+    class_card: str = Field(default="dark:bg-slate-900 bg-slate-200")
+    class_card_selected: str = Field(default="dark:bg-slate-800 bg-slate-100")
+    class_card_header: str = Field(default="dark:bg-slate-700 bg-slate-50")
 
     def update(self, data: dict):
         for k, v in data.items():
             setattr(self, k, v)
 
 
-# NiceCRUD can be used with any pydantic basemodel class. T is the generic type
-# that is a placeholder for the specific class.
+# NiceCRUD can be used with any pydantic BaseModel. T is the generic type
+# that is a placeholder for the specific model
 T = TypeVar("T", bound=BaseModel)
 
 
@@ -81,7 +90,6 @@ class FieldHelperMixin(Generic[T]):
             raise AttributeError("config not found")
         return (
             field_info.exclude
-            or field_name in self.config.additional_exclude_submodels
             or field_name in self.config.additional_exclude
             or (
                 field_info.json_schema_extra is not None
@@ -112,6 +120,8 @@ class NiceCRUDCard(FieldHelperMixin, Generic[T]):
 
     Attributes:
         item: The BaseModel object
+        config: NiceCRUDConfig
+        id_editable: sets if the config.id_field should be editable or not
         select_options: awaitable coroutine taking the field_name and one BaseModel object,
             returning the dictionary with the select options for that field
     """
@@ -156,6 +166,7 @@ class NiceCRUDCard(FieldHelperMixin, Generic[T]):
         try:
             self.errormsg["msg"] = ""
             self.errormsg["visible"] = False
+            # Ensure, that integer remains integer
             if isinstance(getattr(self.item, attr), int):
                 value = None if value is None else int(value)
             setattr(self.item, attr, value)
@@ -191,7 +202,9 @@ class NiceCRUDCard(FieldHelperMixin, Generic[T]):
         errrow.bind_visibility_from(self.errormsg, "visible").classes("w-full")
 
     @staticmethod
-    def get_min_max_from_field_info(field_info: FieldInfo) -> tuple[Optional[float], Optional[float]]:
+    def get_min_max_from_field_info(
+        field_info: FieldInfo,
+    ) -> tuple[Optional[float], Optional[float]]:
         _min, _max = None, None
         for m in field_info.metadata:
             if isinstance(m, annotated_types.Gt):
@@ -208,7 +221,6 @@ class NiceCRUDCard(FieldHelperMixin, Generic[T]):
         """From the field_info, derive the appropriate NiceGUI input element"""
         typ = field_info.annotation
         curval = getattr(self.item, field_name)
-        # curval: Any = self.item.model_dump(mode="json").get(field_name)
         validation = partial(self.onchange, attr=field_name)
         validation_refresh = partial(self.onchange, attr=field_name, refresh=True)
         with ui.label((field_info.title or field_name) + ":"):
@@ -239,7 +251,7 @@ class NiceCRUDCard(FieldHelperMixin, Generic[T]):
             # Literal[BaseModel1, BaseModel2]
             elif all([issubclass(x, BaseModel) for x in typing.get_args(typ)]):
                 _input_type = "basemodelswitcher"
-        if _input_type == "select":
+        if _input_type in ("select", "multiselect"):
             if _selections is not None:
                 assert isinstance(_selections, dict)
                 select_options_dict: dict[str, str] = _selections  # type: ignore
@@ -248,9 +260,18 @@ class NiceCRUDCard(FieldHelperMixin, Generic[T]):
             if len(select_options_dict) == 0:
                 select_options_dict = {curval: curval}
             log.debug(f"{field_name=}: selections = {select_options_dict}")
-            if curval not in select_options_dict and len(select_options_dict) > 0:
+            if _input_type != "multiselect" and curval not in select_options_dict and len(select_options_dict) > 0:
                 curval = next(iter(select_options_dict.keys()))
-            ele = ui.select(options=select_options_dict, value=curval, validation=validation)
+
+            def list_to_dictval(x: list):
+                return validation(dict.fromkeys(x))
+
+            ele = ui.select(
+                options=select_options_dict,
+                value=curval if typing.get_origin(typ) != dict else list(curval.keys()),  # type: ignore
+                validation=validation if typing.get_origin(typ) != dict else list_to_dictval,
+                multiple=_input_type == "multiselect",
+            ).props("use-chips" if _input_type == "multiselect" else "")
         elif _input_type == "basemodelswitcher":
             typemapper = {x.__name__: x for x in typing.get_args(typ)}
             selections = {x.__name__: x.model_config.get("title", x.__name__) for x in typing.get_args((typ))}
@@ -285,11 +306,12 @@ class NiceCRUDCard(FieldHelperMixin, Generic[T]):
                     value=curval.__class__.__name__,
                     on_change=lambda: handle_base_model_switch(),
                 )
-                lab = ui.label().classes("text-slate-500 hidden").bind_text(label, "label")
+                lab = ui.label().classes("hidden").bind_text(label, "label")
 
                 ele = (
                     ui.button(
-                        icon="edit", on_click=lambda: self.handle_edit_subitem(getattr(self.item, field_name), lab)
+                        icon="edit",
+                        on_click=lambda: self.handle_edit_subitem(getattr(self.item, field_name), lab),
                     )
                     .props("flat round")
                     .classes("text-lightprimary dark:primary")
@@ -684,7 +706,15 @@ class NiceCRUD(FieldHelperMixin[T], Generic[T]):
             log.error(f"Trying to get select options for {field_name=}, non-exist on {self.basemodeltype}")
             return dict()
         for m in self.basemodels:
-            options[getattr(m, field_name)] = getattr(m, field_name)
+            if not isinstance(getattr(m, field_name), collections.abc.Hashable):
+                if isinstance(getattr(m, field_name), (dict, list)):
+                    for choice in getattr(m, field_name):
+                        options[choice] = choice
+                else:
+                    log.warning(f"No select options can be determined for non-hashable type {self.basemodeltype}")
+                    options = dict()
+            else:
+                options[getattr(m, field_name)] = getattr(m, field_name)
         return options
 
     def on_change_extra(self, field_name: str, obj: T) -> None:
@@ -698,7 +728,7 @@ class NiceCRUD(FieldHelperMixin[T], Generic[T]):
         """Show the grid of elements"""
         with ui.card().classes("w-full sm:w-full"):
             if self.config.heading:
-                ui.label(self.config.heading).classes(self.config.heading_classes)
+                ui.label(self.config.heading).classes(self.config.class_heading)
             search_input = ui.input(
                 label=self.config.search_input_label
                 or ("Search " + (self.basemodeltype.model_config.get("title") or "table"))
@@ -712,8 +742,9 @@ class NiceCRUD(FieldHelperMixin[T], Generic[T]):
 
         self.table.add_slot(
             "item",
-            r"""
-            <q-card bordered flat :class="props.selected ?  'dark:bg-background bg-slate-200' : 'dark:bg-card bg-slate-100'" 
+            r"""<q-card bordered flat :class=" """
+            f"props.selected ?  '{self.config.class_card_selected}' : '{self.config.class_card}'"
+            r""" "
                 class="sm:w-[calc(50%-20px)] w-full m-2 relative">
                 <div class="absolute top-0 right-0 z-10">
                     <q-btn class="mr-2 mt-2 z-10" size="sm" color="primary" round dense icon="delete"
@@ -723,15 +754,17 @@ class NiceCRUD(FieldHelperMixin[T], Generic[T]):
                         @click="() => $parent.$emit('edit', props.row)"
                     />
                 </div>
-                <q-card-section class="z-1 bg-white">
-                <q-checkbox dense v-model="props.selected" >
+                <q-card-section class="z-1 """
+            + self.config.class_card_header
+            + r""" ">
+                <q-checkbox dense v-model="props.selected">
                     <span v-html="props.row.obj_id"></span>
                 </q-checkbox>
                 </q-card-section> 
                 <q-card-section>
                     <div class="flex flex-row p-0 m-1 w-full gap-y-1">
                     <div class="p-2 border-l-2" v-for="col in props.cols.filter(col => col.name !== 'obj_id')" :key="col.obj_id" >
-                        <q-item-label caption>{{ col.label }}</q-item-label>
+                        <q-item-label caption class="text-[#444444] dark:text-[#BBBBBB]">{{ col.label }}</q-item-label>
                         <q-item-label >{{ col.value }}</q-item-label>
                     </div>
                     </div>
@@ -749,7 +782,11 @@ class NiceCRUD(FieldHelperMixin[T], Generic[T]):
     def get_button_row(self):
         with ui.row() as self.button_row:
             ui.button(text=self.config.add_button_text, icon="add", on_click=self.handle_create)
-            ui.button(text=self.config.delete_button_text, icon="delete", on_click=self.handle_delete_selected)
+            ui.button(
+                text=self.config.delete_button_text,
+                icon="delete",
+                on_click=self.handle_delete_selected,
+            )
 
     @property
     def new_item_dialog_heading(self):
@@ -779,7 +816,7 @@ class NiceCRUD(FieldHelperMixin[T], Generic[T]):
         with ui.dialog().props(props) as self.item_dialog, ui.card().classes("w-full"):
             if item is None:
                 edit = False
-                ui.label(self.new_item_dialog_heading).classes(self.config.subheading_classes)
+                ui.label(self.new_item_dialog_heading).classes(self.config.class_subheading)
                 if self.defaults_given:
                     item = self.basemodeltype()
                 elif len(self.basemodels) > 0:
@@ -804,7 +841,7 @@ class NiceCRUD(FieldHelperMixin[T], Generic[T]):
             else:
                 edit = True
                 ui.label(self.update_item_dialog_heading + " " + str(getattr(item, self.config.id_field))).classes(
-                    self.config.subheading_classes
+                    self.config.class_subheading
                 )
 
                 async def save_action():
