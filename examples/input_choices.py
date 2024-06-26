@@ -2,9 +2,16 @@ import logging
 from typing import Any, Literal, Optional, Union
 
 from nicegui import ui
-from pydantic import (BaseModel, ConfigDict, Field, SerializationInfo,
-                      field_serializer, field_validator, model_serializer,
-                      model_validator)
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    SerializationInfo,
+    field_serializer,
+    field_validator,
+    model_serializer,
+    model_validator,
+)
 
 from niceguicrud import FieldOptions, NiceCRUD, NiceCRUDCard
 from niceguicrud.nicecrud import NiceCRUDField
@@ -17,7 +24,9 @@ log.addHandler(console_handler)
 
 
 class Material(BaseModel, title="Material"):
-    material: Literal["leather", "canvas", "patent leather"] = Field(default="canvas", title="Top material")
+    material: Literal["leather", "canvas", "patent leather"] = Field(
+        default="canvas", title="Top material"
+    )
     color: Literal["black", "maroon", "navy"] = Field(default="black", max_length=30, title="Color")
 
     @model_serializer(mode="wrap")
@@ -42,7 +51,9 @@ class ActiveWear(BaseModel, title="Outdoor"):
 
 class OfficeWear(BaseModel, title="Office"):
     note: str = Field(default="very strict", title="Notes")
-    formality: Literal["Business casual", "Business attire"] = Field(default="Business casual", title="Formality")
+    formality: Literal["Business casual", "Business attire"] = Field(
+        default="Business casual", title="Formality"
+    )
 
     @model_serializer(mode="wrap")
     def gui(self, default_serializer, info=SerializationInfo):
@@ -54,16 +65,22 @@ class OfficeWear(BaseModel, title="Office"):
 
 class NiceShoes(BaseModel):
     name: str = Field(default="unknown", max_length=30, title="Name")
-    size: int = Field(..., lt=49, gt=23, json_schema_extra=FieldOptions(input_type="slider", step=2).model_dump())
+    size: int = Field(
+        ..., lt=49, gt=23, json_schema_extra=FieldOptions(input_type="slider", step=2).model_dump()
+    )
     price: float = Field(..., json_schema_extra=FieldOptions(step=2).model_dump(), lt=100, gt=2.20)
-    style: Literal["sneakers", "heels", "ballet flats", "boots"] = Field(default="ballet flats", title="Shoe style")
+    style: Literal["sneakers", "heels", "ballet flats", "boots"] = Field(
+        default="ballet flats", title="Shoe style"
+    )
     heelheight: Optional[float] = Field(default=None, title="height of heels")
     brand: Literal["Nike", "Adidas", "Converse", "Tamaris"] = Field(
         ..., title="Brand", description="<div>Only the <b>finest</b> brands<div>"
     )
     availsizes: list[int] = Field(default=[36, 39, 42], title="Available sizes")
     available_states: list[str] = Field(default=["used", "new"], title="Available States")
-    avail: bool = Field(default=True, title="available?", json_schema_extra=FieldOptions(readonly=True).model_dump())
+    avail: bool = Field(
+        default=True, title="available?", json_schema_extra=FieldOptions(readonly=True).model_dump()
+    )
     winter: bool = Field(default=True, title="Winter collection")
     material: Material = Field(default_factory=Material, title="Material")
     occasion: Union[ActiveWear, OfficeWear] = Field(default_factory=OfficeWear, title="Occasion")
@@ -73,7 +90,15 @@ class NiceShoes(BaseModel):
         json_schema_extra=FieldOptions(
             input_type="multiselect",
             selections={
-                k: k for k in ("paygroove", "flingfunds", "quixcoin", "bazookaPay", "fizzFinance", "glimmerGold")
+                k: k
+                for k in (
+                    "paygroove",
+                    "flingfunds",
+                    "quixcoin",
+                    "bazookaPay",
+                    "fizzFinance",
+                    "glimmerGold",
+                )
             },
         ).model_dump(),
     )

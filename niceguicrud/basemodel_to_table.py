@@ -27,7 +27,9 @@ def basemodel_to_columns(
         if include is not None and fieldname not in include:
             continue
         if not fieldinfo.exclude:
-            columns.append(dict(name=fieldname, label=fieldinfo.title or fieldname, field=fieldname))
+            columns.append(
+                dict(name=fieldname, label=fieldinfo.title or fieldname, field=fieldname)
+            )
     return columns
 
 

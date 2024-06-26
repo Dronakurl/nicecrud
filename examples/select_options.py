@@ -18,7 +18,9 @@ log.addHandler(console_handler)
 class NiceShoes(BaseModel, title="NiceShoes"):
     name: str = Field(default_factory=lambda: str(uuid.uuid4()), max_length=60, title="Name")
     payment_options: dict[str, Any] = NiceCRUDField(
-        default_factory=dict[str, Any], title="Payment Options", nicecrud_options=FieldOptions(input_type="multiselect")
+        default_factory=dict[str, Any],
+        title="Payment Options",
+        nicecrud_options=FieldOptions(input_type="multiselect"),
     )
 
     @field_serializer("payment_options")

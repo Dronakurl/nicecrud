@@ -27,7 +27,7 @@ pythonpath = ["."]
 testpaths = ["tests"]
 
 [tool.ruff]
-line-length = 120
+line-length = 100
 exclude = ["**/__init__.py"]
 
 [tool.basedpyright]
@@ -39,7 +39,7 @@ pythonPlatform = "Linux"
 reportUnusedImport = false
 
 [tool.black]
-line-length = 120
+line-length = 100
 
 [build-system]
 requires = ["poetry-core"]

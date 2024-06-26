@@ -2,7 +2,9 @@ from nicegui import ui
 
 
 def show_error(message: str = "Somethin went horribly wrong"):
-    with ui.row().classes("align-center text-red-500 bg-yellow-100 items-center gap-2 flex-nowrap") as row_element:
+    with ui.row().classes(
+        "align-center text-red-500 bg-yellow-100 items-center gap-2 flex-nowrap"
+    ) as row_element:
         ui.icon("error", size="lg").classes("p-2 border-l-8 border-yellow-500 ")
         label_element = ui.label(message).classes("pl-0 pr-3 font-bold")
     return label_element, row_element

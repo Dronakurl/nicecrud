@@ -18,11 +18,11 @@ class SpouseModel(BaseModel):
     is_employed: bool = False
 
     @model_serializer(mode="wrap")
-    def gui(self, default_ser, info=SerializationInfo):
+    def gui(self, default_serializer, info=SerializationInfo):
         context = info.context  # pyright: ignore[reportAttributeAccessIssue]
         if context and context.get("gui"):
             return self.name + (" (unemployed)" if not self.is_employed else "")
-        return default_ser(self)
+        return default_serializer(self)
 
 
 class Actor(BaseModel):
@@ -31,8 +31,16 @@ class Actor(BaseModel):
     spouse: SpouseModel
 
 
-actress = Actor(name="Scarlett Joh", age=36, spouse=SpouseModel(name="Colin Jost", age=39, is_employed=True))
-another_actress = Actor(name="Natalie Portman", age=40, spouse=SpouseModel(name="Benjamin Millepied", age=45))
+actress = Actor(
+    name="Scarlett Joh",
+    age=36,
+    spouse=SpouseModel(name="Colin Jost", age=39, is_employed=True),
+)
+another_actress = Actor(
+    name="Natalie Portman",
+    age=40,
+    spouse=SpouseModel(name="Benjamin Millepied", age=45),
+)
 crud_config = NiceCRUDConfig(id_field="name", heading="Actress Database")
 crud_app = NiceCRUD(basemodels=[actress, another_actress], config=crud_config)
 
