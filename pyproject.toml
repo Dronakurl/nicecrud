@@ -13,6 +13,7 @@ nicegui = "*"
 [tool.poetry.group.dev.dependencies]
 pytest = "*"
 pytest-asyncio = "*"
+pre-commit = "*"
 
 [tool.pytest.ini_options]
 addopts = [

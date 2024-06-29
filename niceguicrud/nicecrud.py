@@ -5,8 +5,7 @@ import re
 import typing
 from functools import partial
 from types import UnionType
-from typing import (Awaitable, Callable, Generic, Literal, Optional, Type,
-                    TypeVar, Union)
+from typing import Awaitable, Callable, Generic, Literal, Optional, Type, TypeVar, Union
 
 import annotated_types
 import httpx
@@ -281,8 +280,8 @@ class NiceCRUDCard(FieldHelperMixin, Generic[T]):
 
             ele = ui.select(
                 options=select_options_dict,
-                value=curval if typing.get_origin(typ) != dict else list(curval.keys()),  # type: ignore
-                validation=validation if typing.get_origin(typ) != dict else list_to_dictval,
+                value=curval if typing.get_origin(typ) is not dict else list(curval.keys()),  # type: ignore
+                validation=validation if typing.get_origin(typ) is not dict else list_to_dictval,
                 multiple=_input_type == "multiselect",
             ).props("use-chips" if _input_type == "multiselect" else "")
         elif _input_type == "basemodelswitcher":
@@ -336,7 +335,7 @@ class NiceCRUDCard(FieldHelperMixin, Generic[T]):
         elif typ is None:
             log.error(f"no type found for {self.item}")
             ui.label("ERROR")
-        elif typ == str:
+        elif typ is str:
             # String Inputs
             ele = ui.input(
                 value=curval, validation=validation, placeholder=field_info.description or ""
@@ -370,7 +369,7 @@ class NiceCRUDCard(FieldHelperMixin, Generic[T]):
                 value=curval,
                 validation=validation_refresh,
             )
-        elif typ == bool:
+        elif typ is bool:
             ele = ui.switch(value=curval, on_change=validation_refresh)
         elif typ == BaseModel or (isinstance(typ, type) and issubclass(typ, BaseModel)):
             with ui.row().classes("items-center justify-shrink w-full flex-nowrap"):
@@ -383,9 +382,9 @@ class NiceCRUDCard(FieldHelperMixin, Generic[T]):
                     .props("flat round")
                     .classes("text-lightprimary dark:primary")
                 )
-        elif typing.get_origin(typ) == list and typing.get_args(typ)[0] == str:
+        elif typing.get_origin(typ) is list and typing.get_args(typ)[0] is str:
             ele = ui.input(value=",".join(curval), validation=lambda v: validation(v.split(",")))
-        elif typing.get_origin(typ) == list and issubclass(typing.get_args(typ)[0], (int, float)):
+        elif typing.get_origin(typ) is list and issubclass(typing.get_args(typ)[0], (int, float)):
             ele = ui.input(
                 value=",".join(map(str, curval)), validation=lambda v: validation(v.split(","))
             )
@@ -852,7 +851,7 @@ class NiceCRUD(FieldHelperMixin[T], Generic[T]):
         else:
             return "Update item"
 
-    def get_item_dialog(self, item: Optional[T] = None):
+    def get_item_dialog(self, item: T | None = None):
         if self.column_count > 1:
             props = "full-width"
         else:
