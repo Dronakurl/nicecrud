@@ -94,15 +94,14 @@ class FieldHelperMixin(Generic[T]):
         """Checks if a given field should be excluded from the card"""
         if not hasattr(self, "config") or not (isinstance(getattr(self, "config"), NiceCRUDConfig)):
             raise AttributeError("config not found")
-        return (
-            field_info.exclude
-            or field_name in self.config.additional_exclude
-            or (
-                field_info.json_schema_extra is not None
-                and isinstance(field_info.json_schema_extra, bool)
-                and field_info.json_schema_extra.get("exclude", False)
-            )
-        )
+        field_exclude = False
+        extra = field_info.json_schema_extra
+        if extra is not None and isinstance(extra, dict):
+            field_exclude = extra.get("exclude", False) or False
+            if not isinstance(field_exclude, bool):
+                log.error(f"exclude can only be bool, you provided {type(field_exclude)}")
+                field_exclude = False
+        return field_info.exclude or field_name in self.config.additional_exclude or field_exclude
 
     def get_included_fields(self):
         """Get a list of fields to be included in the card"""
@@ -114,6 +113,10 @@ class FieldHelperMixin(Generic[T]):
     @property
     def column_count(self):
         return max((int(len(self.included_fields) / 4), 1))
+
+    @property
+    def included_field_names(self):
+        return [x[0] for x in self.included_fields]
 
     def field_exists(self, field_name: str):
         return field_name in self.basemodeltype.model_fields.keys()
@@ -440,7 +443,7 @@ class NiceCRUD(FieldHelperMixin[T], Generic[T]):
         config: NiceCRUDConfig | dict = NiceCRUDConfig(),
         **kwargs,  # Config parameters can be given by keyword arguments as well
     ):
-        self.basemodeltype = basemodeltype or self.infer_basemodeltype(basemodels)
+        self.basemodeltype = basemodeltype or self._infer_basemodeltype(basemodels)
         if isinstance(config, dict):
             config = NiceCRUDConfig(**config, **kwargs)
         self.config: NiceCRUDConfig = config
@@ -461,12 +464,12 @@ class NiceCRUD(FieldHelperMixin[T], Generic[T]):
         self.show_table()  # type: ignore
 
     @classmethod
-    def infer_basemodeltype(cls, basemodels: list[T] | dict[str, T]) -> Type[T]:
-        x = cls.getfirst(basemodels)
+    def _infer_basemodeltype(cls, basemodels: list[T] | dict[str, T]) -> Type[T]:
+        x = cls._getfirst(basemodels)
         return type(x)
 
     @staticmethod
-    def getfirst(basemodels: list[T] | dict[str, T]) -> T:
+    def _getfirst(basemodels: list[T] | dict[str, T]) -> T:
         if isinstance(basemodels, list):
             return basemodels[0]
         elif isinstance(basemodels, dict):
@@ -511,12 +514,13 @@ class NiceCRUD(FieldHelperMixin[T], Generic[T]):
     async def from_http_request(
         cls,
         url: str = "http://localhost:8000/something/",
+        headers: dict[str, str] | None = None,
         basemodeltype: type[BaseModel] = BaseModel,
         config: NiceCRUDConfig = NiceCRUDConfig(),
         **kwargs,
     ):
         async with httpx.AsyncClient() as client:
-            response = await client.get(url)
+            response = await client.get(url, headers=httpx.Headers(headers))
         listofdicts = response.json()
         if not isinstance(listofdicts, list):
             ui.notify(f"Invalid response from {url}", color="negative")
@@ -550,7 +554,7 @@ class NiceCRUD(FieldHelperMixin[T], Generic[T]):
         columns = [
             c | dict(sortable=True)
             for c in columns
-            if c["name"] != self.config.id_field and c["name"] not in self.config.additional_exclude
+            if c["name"] != self.config.id_field and c["name"] in self.included_field_names
         ]
         for r in rows:
             r["obj_id"] = (
