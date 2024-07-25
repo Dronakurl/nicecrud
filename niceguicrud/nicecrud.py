@@ -17,6 +17,7 @@ from .basemodel_to_table import basemodellist_to_rows_and_cols
 from .show_error import show_error
 
 log = logging.getLogger(__name__)
+print(__name__)
 log.addHandler(logging.NullHandler())
 
 
@@ -386,7 +387,7 @@ class NiceCRUDCard(FieldHelperMixin, Generic[T]):
                     .props("flat round")
                     .classes("text-lightprimary dark:primary")
                 )
-        elif typing.get_origin(typ) is list and typing.get_args(typ)[0] is str:
+        elif typing.get_origin(typ) in (list, set) and typing.get_args(typ)[0] is str:
             ele = ui.input(value=",".join(curval), validation=lambda v: validation(v.split(",")))
         elif typing.get_origin(typ) is list and issubclass(typing.get_args(typ)[0], (int, float)):
             ele = ui.input(
@@ -443,7 +444,7 @@ class NiceCRUD(FieldHelperMixin[T], Generic[T]):
         config: NiceCRUDConfig | dict = NiceCRUDConfig(),
         **kwargs,  # Config parameters can be given by keyword arguments as well
     ):
-        self.basemodeltype = basemodeltype or self._infer_basemodeltype(basemodels)
+        self.basemodeltype = basemodeltype or self.infer_basemodeltype(basemodels)
         if isinstance(config, dict):
             config = NiceCRUDConfig(**config, **kwargs)
         self.config: NiceCRUDConfig = config
@@ -464,12 +465,12 @@ class NiceCRUD(FieldHelperMixin[T], Generic[T]):
         self.show_table()  # type: ignore
 
     @classmethod
-    def _infer_basemodeltype(cls, basemodels: list[T] | dict[str, T]) -> Type[T]:
-        x = cls._getfirst(basemodels)
+    def infer_basemodeltype(cls, basemodels: list[T] | dict[str, T]) -> Type[T]:
+        x = cls.getfirst(basemodels)
         return type(x)
 
     @staticmethod
-    def _getfirst(basemodels: list[T] | dict[str, T]) -> T:
+    def getfirst(basemodels: list[T] | dict[str, T]) -> T:
         if isinstance(basemodels, list):
             return basemodels[0]
         elif isinstance(basemodels, dict):
@@ -519,6 +520,9 @@ class NiceCRUD(FieldHelperMixin[T], Generic[T]):
         config: NiceCRUDConfig = NiceCRUDConfig(),
         **kwargs,
     ):
+        print(__name__)
+        print("UHUHUHUHUHUH")
+        log.debug(f"Create CRUD application site from {url=}")
         async with httpx.AsyncClient() as client:
             response = await client.get(url, headers=httpx.Headers(headers))
         listofdicts = response.json()
