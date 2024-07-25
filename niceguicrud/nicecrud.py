@@ -17,7 +17,6 @@ from .basemodel_to_table import basemodellist_to_rows_and_cols
 from .show_error import show_error
 
 log = logging.getLogger(__name__)
-print(__name__)
 log.addHandler(logging.NullHandler())
 
 
@@ -273,6 +272,7 @@ class NiceCRUDCard(FieldHelperMixin, Generic[T]):
             if len(select_options_dict) == 0:
                 select_options_dict = {curval: curval}
             log.debug(f"{field_name=}: selections = {select_options_dict}")
+            log.debug(f"{field_name=}: {typing.get_origin(typ)=}")
             if (
                 _input_type != "multiselect"
                 and curval not in select_options_dict
@@ -520,8 +520,6 @@ class NiceCRUD(FieldHelperMixin[T], Generic[T]):
         config: NiceCRUDConfig = NiceCRUDConfig(),
         **kwargs,
     ):
-        print(__name__)
-        print("UHUHUHUHUHUH")
         log.debug(f"Create CRUD application site from {url=}")
         async with httpx.AsyncClient() as client:
             response = await client.get(url, headers=httpx.Headers(headers))
