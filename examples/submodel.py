@@ -18,7 +18,7 @@ class SpouseModel(BaseModel):
     is_employed: bool = False
 
     @model_serializer(mode="wrap")
-    def gui(self, default_serializer, info=SerializationInfo):
+    def gui(self, default_serializer, info: SerializationInfo):
         context = info.context  # pyright: ignore[reportAttributeAccessIssue]
         if context and context.get("gui"):
             return self.name + (" (unemployed)" if not self.is_employed else "")
