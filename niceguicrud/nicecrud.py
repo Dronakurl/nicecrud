@@ -69,6 +69,10 @@ class NiceCRUDConfig(BaseModel, title="Options for a NiceCRUD instance", validat
     class_card: str = Field(default="dark:bg-slate-900 bg-slate-200")
     class_card_selected: str = Field(default="dark:bg-slate-800 bg-slate-100")
     class_card_header: str = Field(default="dark:bg-slate-700 bg-slate-50")
+    column_count: int | None = Field(
+        default=None,
+        description="Number of columns to be used for the settings card, default None calculates it from the number of inputs",
+    )
 
     def update(self, data: dict):
         for k, v in data.items():
@@ -112,7 +116,7 @@ class FieldHelperMixin(Generic[T]):
 
     @property
     def column_count(self):
-        return max((int(len(self.included_fields) / 4), 1))
+        return self.config.column_count or max((int(len(self.included_fields) / 4), 1))
 
     @property
     def included_field_names(self):
@@ -255,6 +259,7 @@ class NiceCRUDCard(FieldHelperMixin, Generic[T]):
         _optional = False
         # Generate the UI elements
         ele = None
+        log.debug(f"{field_name=} {typing.get_origin(typ)=} ")
         if typing.get_origin(typ) in {Union, UnionType}:
             # Optional Fields
             if len(typing.get_args(typ)) > 1 and typing.get_args(typ)[1] == type(None):

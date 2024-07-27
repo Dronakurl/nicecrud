@@ -29,7 +29,7 @@ class Material(BaseModel, title="Material"):
     color: Literal["black", "maroon", "navy"] = Field(default="black", max_length=30, title="Color")
 
     @model_serializer(mode="wrap")
-    def gui(self, default_serializer, info=SerializationInfo):
+    def gui(self, default_serializer, info: SerializationInfo):
         context = info.context  # pyright: ignore[reportAttributeAccessIssue]
         if context and context.get("gui"):
             return f"{self.color} {self.material}"
@@ -41,7 +41,7 @@ class ActiveWear(BaseModel, title="Outdoor"):
     shock_absorption: bool = Field(default=True, title="Shock Absorption")
 
     @model_serializer(mode="wrap")
-    def gui(self, default_serializer, info=SerializationInfo):
+    def gui(self, default_serializer, info: SerializationInfo):
         context = info.context  # pyright: ignore[reportAttributeAccessIssue]
         if context and context.get("gui"):
             return f"{self.performance_materials} "
@@ -55,7 +55,7 @@ class OfficeWear(BaseModel, title="Office"):
     )
 
     @model_serializer(mode="wrap")
-    def gui(self, default_serializer, info=SerializationInfo):
+    def gui(self, default_serializer, info: SerializationInfo):
         context = info.context  # pyright: ignore[reportAttributeAccessIssue]
         if context and context.get("gui"):
             return f"{self.formality} "
