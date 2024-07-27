@@ -176,11 +176,14 @@ class NiceCRUDCard(FieldHelperMixin, Generic[T]):
         """Called on every change of an input, tries to validate the BaseModel"""
         if hasattr(value, "value"):
             value = value.value
+        log.debug(f"{attr=} {value=} {type(value)=}")
         try:
             self.errormsg["msg"] = ""
             self.errormsg["visible"] = False
             # Ensure, that integer remains integer
-            if isinstance(getattr(self.item, attr), int):
+            if not isinstance(getattr(self.item, attr), bool) and isinstance(
+                getattr(self.item, attr), int
+            ):
                 value = None if value is None else int(value)
             setattr(self.item, attr, value)
             val_result = True
@@ -259,7 +262,6 @@ class NiceCRUDCard(FieldHelperMixin, Generic[T]):
         _optional = False
         # Generate the UI elements
         ele = None
-        log.debug(f"{field_name=} {typing.get_origin(typ)=} ")
         if typing.get_origin(typ) in {Union, UnionType}:
             # Optional Fields
             if len(typing.get_args(typ)) > 1 and typing.get_args(typ)[1] == type(None):
@@ -268,6 +270,7 @@ class NiceCRUDCard(FieldHelperMixin, Generic[T]):
             # Literal[BaseModel1, BaseModel2]
             elif all([issubclass(x, BaseModel) for x in typing.get_args(typ)]):
                 _input_type = "basemodelswitcher"
+        log.debug(f"{field_name=} {_input_type=} {typ=} {typing.get_origin(typ)=} ")
         if _input_type in ("select", "multiselect"):
             if _selections is not None:
                 assert isinstance(_selections, dict)
