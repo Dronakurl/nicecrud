@@ -530,7 +530,7 @@ class NiceCRUD(FieldHelperMixin[T], Generic[T]):
     ):
         log.debug(f"Create CRUD application site from {url=}")
         async with httpx.AsyncClient() as client:
-            response = await client.get(url, headers=httpx.Headers(headers))
+            response = await client.get(url, headers=httpx.Headers(headers), follow_redirects=True)
         listofdicts = response.json()
         if not isinstance(listofdicts, list):
             ui.notify(f"Invalid response from {url}", color="negative")
@@ -541,7 +541,7 @@ class NiceCRUD(FieldHelperMixin[T], Generic[T]):
             ui.notify(f"Invalid data from {url}", color="negative")
             log.error(f"ValidationError: {str(e)}")
             return None
-        res = cls(basemodeltype=basemodeltype, basemodels=basemodels, config=config, **kwargs)
+        res = cls(basemodeltype=basemodeltype, basemodels=basemodels, config=config, **kwargs)  # pyright: ignore[reportArgumentType]
         return res
 
     @property
