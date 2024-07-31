@@ -277,7 +277,7 @@ class NiceCRUDCard(FieldHelperMixin, Generic[T]):
                 select_options_dict: dict[str, str] = _selections  # type: ignore
             else:
                 select_options_dict = await self.select_options(field_name, self.item)
-            if len(select_options_dict) == 0:
+            if len(select_options_dict) == 0 and curval:
                 select_options_dict = {curval: curval}
             log.debug(f"{field_name=}: selections = {select_options_dict}")
             log.debug(f"{field_name=}: {typing.get_origin(typ)=}")
