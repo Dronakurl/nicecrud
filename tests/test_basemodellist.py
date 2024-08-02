@@ -19,7 +19,7 @@ class Source(BaseModel):
     source_id: str
     typ: str
     url: str
-    models: dict[str, Model]
+    models: dict[str, Model] = dict()
 
 
 class Bicycle(BaseModel):
@@ -118,3 +118,18 @@ def test_basemodellist_to_rows_and_cols(bicycle_list):
     rows, columns = basemodellist_to_rows_and_cols(bicycle_list)
     assert columns == expected_columns
     assert rows == expected_rows
+
+
+def test_Source_fields():
+    xx = []
+    xx.append(Source(source_id="AB", typ="video_file", url="http://example.com/video.mp4/"))
+    xx.append(Source(source_id="XA", typ="video_file", url="http://example.com/video.mp4/"))
+    xx.append(Source(source_id="AC", typ="video_file", url="http://example.com/video.mp4/"))
+    xx.append(Source(source_id="Ax", typ="local_device", url="0"))
+    cols = basemodel_to_columns(Source, include={"source_id", "url"})
+    assert isinstance(cols, list)
+    assert "typ" not in [x["field"] for x in cols]
+    assert "url" in [x["field"] for x in cols]
+    rows = basemodellist_to_rows(xx, exclude={"typ"})
+    assert isinstance(cols, list)
+    assert "typ" not in rows[0]
