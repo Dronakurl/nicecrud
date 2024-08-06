@@ -74,6 +74,9 @@ class NiceCRUDConfig(BaseModel, title="Options for a NiceCRUD instance", validat
         default=None,
         description="Number of columns to be used for the settings card, default None calculates it from the number of inputs",
     )
+    display_on_init: bool = Field(
+        default=True, description="Display the table on initialization of the class"
+    )
 
     def update(self, data: dict):
         for k, v in data.items():
@@ -568,9 +571,10 @@ class NiceCRUD(FieldHelperMixin[T], Generic[T]):
         self.item_dialog: ui.dialog
         self.button_row: ui.row
         self.table: ui.table
-        self.add_resize_trigger()
-        self.get_button_row()
-        self.show_table()  # type: ignore
+        if config.display_on_init:
+            self.add_resize_trigger()
+            self.get_button_row()
+            self.show_table()  # type: ignore
 
     @classmethod
     def infer_basemodeltype(cls, basemodels: list[T] | dict[str, T]) -> Type[T]:
