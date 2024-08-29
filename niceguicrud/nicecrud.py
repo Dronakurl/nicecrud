@@ -1,3 +1,4 @@
+# pyright: reportArgumentType=false
 import collections.abc
 import html
 import logging
