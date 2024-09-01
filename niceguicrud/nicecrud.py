@@ -13,6 +13,7 @@ import httpx
 from nicegui import events, ui
 from pydantic import BaseModel, Field, ValidationError
 from pydantic.fields import FieldInfo
+from pydantic_core import PydanticUndefined
 
 from .basemodel_to_table import basemodellist_to_rows_and_cols
 from .show_error import show_error
@@ -73,6 +74,9 @@ class NiceCRUDConfig(BaseModel, title="Options for a NiceCRUD instance", validat
     column_count: int | None = Field(
         default=None,
         description="Number of columns to be used for the settings card, default None calculates it from the number of inputs",
+    )
+    display_on_init: bool = Field(
+        default=True, description="Display the table on initialization of the class"
     )
 
     def update(self, data: dict):
@@ -396,6 +400,27 @@ class NiceCRUDCard(FieldHelperMixin, Generic[T]):
                     .props("flat round")
                     .classes("text-lightprimary dark:primary")
                 )
+        elif typing.get_origin(typ) is list and issubclass(typing.get_args(typ)[0], BaseModel):
+            if not curval:
+                curval = []
+            with ui.list().classes("w-full").props("bordered separator"):
+                for i, subitem in enumerate(curval):
+                    with ui.item():
+                        with ui.item_section():
+                            lab = ui.label(str(subitem.model_dump(context=dict(gui=True))))
+                        with ui.item_section().props("side"):
+                            clickfun = partial(self.handle_edit_subitem, subitem, lab)
+                            ui.button(icon="edit", on_click=clickfun).props("flat round")
+                        with ui.item_section().props("side"):
+                            ui.button(
+                                icon="delete",
+                                on_click=partial(self.handle_delete_list_subitem, field_name, i),
+                            ).props("flat round")
+                with ui.item():
+                    ui.button(
+                        icon="add",
+                        on_click=partial(self.handle_add_list_subitem, field_name, field_info),
+                    ).props("flat round")
         elif typing.get_origin(typ) in (list, set) and typing.get_args(typ)[0] is str:
             ele = ui.input(value=",".join(curval), validation=lambda v: validation(v.split(",")))
         elif typing.get_origin(typ) is list and issubclass(typing.get_args(typ)[0], (int, float)):
@@ -410,6 +435,39 @@ class NiceCRUDCard(FieldHelperMixin, Generic[T]):
         ):
             ele.disable()
 
+    def handle_add_list_subitem(self, field_name: str, field_info: FieldInfo):
+        """Handle adding a new subitem to the list."""
+        log.debug(f"handle_add_list_subitem {field_name}")
+
+        # Make new subitem
+        subitem_type = typing.get_args(field_info.annotation)[0]
+        new_subitem = self._initialize_with_placeholders(subitem_type)
+
+        def add_subitem():
+            """Add the subitem to the list and refresh the card."""
+            # Check if parent is already a list
+            if not hasattr(self.item, field_name):
+                setattr(self.item, field_name, [])
+
+            # Add new subitem to parent list
+            subitem_list = getattr(self.item, field_name)
+            subitem_list.append(new_subitem)
+
+            # Refresh card that contains list
+            self.create_card.refresh()
+
+        self.get_subitem_dialog(new_subitem, on_save=add_subitem)
+        if self.subitem_dialog:
+            self.subitem_dialog.open()
+
+    def handle_delete_list_subitem(self, field_name: str, subitem_index: int):
+        """Handle deleting a subitem from the list."""
+        log.debug(f"handle_delete_list_subitem field {field_name} index {subitem_index}")
+        subitem_list = getattr(self.item, field_name)
+        if 0 <= subitem_index < len(subitem_list):
+            subitem_list.pop(subitem_index)
+            self.create_card.refresh()
+
     def handle_edit_subitem(self, curval: BaseModel, lab: ui.label):
         log.debug(f"handle_edit_subitem {curval.model_dump(context=dict(gui=True))}")
         self.get_subitem_dialog(curval)
@@ -421,7 +479,7 @@ class NiceCRUDCard(FieldHelperMixin, Generic[T]):
             "before-hide", lambda: lab.set_text(str(curval.model_dump(context=dict(gui=True))))
         )
 
-    def get_subitem_dialog(self, item: BaseModel):
+    def get_subitem_dialog(self, item: BaseModel, on_save: Callable[[], None] = None):
         log.debug("get_subitem_dialog")
         with ui.dialog() as self.subitem_dialog, ui.card():
             title = item.model_config.get("title")
@@ -429,6 +487,51 @@ class NiceCRUDCard(FieldHelperMixin, Generic[T]):
                 ui.label(title).classes("text-lg")
             with ui.row():
                 NiceCRUDCard(item=item, config=self.config)
+            with ui.row().classes("w-full justify-end"):
+                ui.button(
+                    "Save",
+                    icon="check_circle",
+                    on_click=lambda: self.save_subitem(item, on_save),
+                )
+
+    def save_subitem(self, item: BaseModel, on_save: Optional[Callable[[], None]] = None):
+        """Save the subitem and close the dialog."""
+        log.debug(f"Saving subitem: {item}")
+        if on_save:
+            on_save()
+        self.subitem_dialog.close()
+
+    @staticmethod
+    def _initialize_with_placeholders(subitem_type: BaseModel):
+        """Initialize a new subitem with placeholder values based on the type of the fields"""
+        subitem_data = {}
+        for subfield_name, subfield_info in subitem_type.model_fields.items():
+            if not subfield_info.is_required():
+                continue
+            if subfield_info.default is not PydanticUndefined:
+                subitem_data[subfield_name] = subfield_info.default
+            else:
+                # Add a placeholder value based on the type of the field
+                if subfield_info.annotation is str:
+                    subitem_data[subfield_name] = "Enter text"
+                elif subfield_info.annotation is int:
+                    subitem_data[subfield_name] = 0
+                elif subfield_info.annotation is float:
+                    subitem_data[subfield_name] = 0.0
+                elif subfield_info.annotation is bool:
+                    subitem_data[subfield_name] = False
+                elif typing.get_origin(subfield_info.annotation) is list:
+                    subitem_data[subfield_name] = []
+                elif typing.get_origin(subfield_info.annotation) is dict:
+                    subitem_data[subfield_name] = {}
+                elif issubclass(subfield_info.annotation, BaseModel):
+                    subitem_data[subfield_name] = subfield_info.annotation()
+                else:
+                    subitem_data[subfield_name] = None
+
+        log.debug(f"Initialized subitem data: {subitem_data}")
+
+        return subitem_type(**subitem_data)
 
 
 class NiceCRUD(FieldHelperMixin[T], Generic[T]):
@@ -469,9 +572,10 @@ class NiceCRUD(FieldHelperMixin[T], Generic[T]):
         self.item_dialog: ui.dialog
         self.button_row: ui.row
         self.table: ui.table
-        self.add_resize_trigger()
-        self.get_button_row()
-        self.show_table()  # type: ignore
+        if config.display_on_init:
+            self.add_resize_trigger()
+            self.get_button_row()
+            self.show_table()  # type: ignore
 
     @classmethod
     def infer_basemodeltype(cls, basemodels: list[T] | dict[str, T]) -> Type[T]:
@@ -819,7 +923,7 @@ class NiceCRUD(FieldHelperMixin[T], Generic[T]):
                 <q-checkbox dense v-model="props.selected">
                     <span v-html="props.row.obj_id"></span>
                 </q-checkbox>
-                </q-card-section> 
+                </q-card-section>
                 <q-card-section>
                     <div class="flex flex-row p-0 m-1 w-full gap-y-1">
                     <div class="p-2 border-l-2" v-for="col in props.cols.filter(col => col.name !== 'obj_id')" :key="col.obj_id" >
