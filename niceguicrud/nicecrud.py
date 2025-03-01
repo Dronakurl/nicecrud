@@ -26,7 +26,7 @@ class FieldOptions(BaseModel, title="Options that can be set in each Field in js
     """Options that can be set in each Field in json_schema_extra"""
 
     step: Optional[float] = Field(default=None, title="Step size for numeric Fields")
-    input_type: Optional[Literal["slider", "number", "select", "multiselect"]] = Field(default=None)
+    input_type: Optional[Literal["slider", "textarea", "number", "select", "multiselect"]] = Field(default=None)
     selections: dict[str, str] | None = Field(
         default=None, title="selections for input_type=select"
     )
@@ -245,16 +245,30 @@ class NiceCRUDCard(FieldHelperMixin, Generic[T]):
         curval = getattr(self.item, field_name)
         validation = partial(self.onchange, attr=field_name)
         validation_refresh = partial(self.onchange, attr=field_name, refresh=True)
-        with ui.label((field_info.title or field_name) + ":"):
+
+        _input_type = None
+        if field_info.description is not None:
+            tooltip_icon = " 💬 "
+        else:
+            tooltip_icon = ""
+
+        with ui.label((field_info.title or field_name) + tooltip_icon + ":"):
             if field_info.description is not None:
-                with ui.tooltip():
-                    ui.html(field_info.description)
+
+                # Ok, super hacky, but it works :)
+                if field_info.description.startswith("textarea:"):
+                    _input_type = "textarea"
+                    field_info_desc = field_info.description[9:]
+                else:
+                    field_info_desc = field_info.description
+                with ui.tooltip().classes("text-base"):
+                    ui.html(field_info_desc)
             else:
                 pass
         _max, _min = self.get_min_max_from_field_info(field_info)
         # Metadata in json_schema_extra
         _step = None
-        _input_type = None
+
         _readonly = False
         _selections = None
         extra = field_info.json_schema_extra
@@ -355,9 +369,12 @@ class NiceCRUDCard(FieldHelperMixin, Generic[T]):
             ui.label("ERROR")
         elif typ is str:
             # String Inputs
-            ele = ui.input(
-                value=curval, validation=validation, placeholder=field_info.description or ""
-            )
+            if _input_type == "textarea":
+                ele = ui.textarea(value=curval, validation=validation)
+            else:
+                ele = ui.input(
+                    value=curval, validation=validation, placeholder=field_info.description or ""
+                )
             if _optional:
                 ele.props("clearable")
         elif typ in (int, float):
