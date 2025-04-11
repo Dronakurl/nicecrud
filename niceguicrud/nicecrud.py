@@ -4,6 +4,7 @@ import html
 import logging
 import re
 import typing
+from datetime import date
 from functools import partial
 from types import UnionType
 from typing import Awaitable, Callable, Generic, Literal, Optional, Type, TypeVar, Union
@@ -35,8 +36,20 @@ class FieldOptions(BaseModel, title="Options that can be set in each Field in js
 
 
 def NiceCRUDField(
-    *args, title: str | None = None, nicecrud_options: FieldOptions | None = None, **kwargs
+    *args,
+    title: str | None = None,
+    nicecrud_options: FieldOptions | None = None,
+    **kwargs,
 ):
+    """Just like pydantic.Field but with extra options for NiceCRUD, that are
+       stored in json_schema_extra
+
+    Args:
+        title: [TODO:description]
+        nicecrud_options: FieldOptions
+        *args: passed through to Field
+        **kwargs: passed through to Field
+    """
     json_schema_extra = nicecrud_options.model_dump() if nicecrud_options is not None else None
     if "json_schema_extra" in kwargs:
         log.warning("Use json_schema_extra *or* nicecrud_options with NiceCRUDField")
@@ -85,7 +98,7 @@ class NiceCRUDConfig(BaseModel, title="Options for a NiceCRUD instance", validat
 
 
 # NiceCRUD can be used with any pydantic BaseModel. T is the generic type
-# that is a placeholder for the specific model
+# that is a placeholder for the specific BaseModel subclass.
 T = TypeVar("T", bound=BaseModel)
 
 
@@ -137,7 +150,7 @@ class NiceCRUDCard(FieldHelperMixin, Generic[T]):
     This is separate, so that it can be used stand alone.
 
     Attributes:
-        item: The BaseModel object
+        item: BaseModel (or subclass) object
         config: NiceCRUDConfig
         id_editable: sets if the config.id_field should be editable or not
         select_options: awaitable coroutine taking the field_name and one BaseModel object,
@@ -208,7 +221,7 @@ class NiceCRUDCard(FieldHelperMixin, Generic[T]):
             self.on_change_extra(attr, self.item)
         self.on_validation_result(val_result)
         if refresh:
-            self.create_card.refresh()  # pyright: ignore
+            self.create_card.refresh()
 
     @ui.refreshable
     async def create_card(self):
@@ -362,6 +375,15 @@ class NiceCRUDCard(FieldHelperMixin, Generic[T]):
             )
             if _optional:
                 ele.props("clearable")
+        elif typ is date:
+            with ui.input(value=curval, validation=validation) as dates:
+                with ui.menu().props("no-parent-event") as menu:
+                    with ui.date().bind_value(dates):
+                        with ui.row().classes("justify-end"):
+                            ui.button("Close", on_click=menu.close).props("flat")
+                with dates.add_slot("append"):
+                    ui.icon("edit_calendar").on("click", menu.open).classes("cursor-pointer")
+            ele = dates
         elif typ in (int, float):
             # Number inputs
             if _input_type == "number" or _input_type is None or _min is None or _max is None:

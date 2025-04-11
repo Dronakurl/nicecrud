@@ -1,4 +1,5 @@
 import logging
+from datetime import date
 from typing import Any, Literal, Optional, Union
 
 from nicegui import ui
@@ -68,6 +69,7 @@ class NiceShoes(BaseModel, validate_assignment=True, title="Shoe"):
         ..., lt=49, gt=23, json_schema_extra=FieldOptions(input_type="slider", step=2).model_dump()
     )
     price: float = Field(..., json_schema_extra=FieldOptions(step=2).model_dump(), lt=100, gt=2.20)
+    date_of_purchase: date = Field(default_factory=date.today, title="Date of Purchase")
     style: Literal["sneakers", "heels", "ballet flats", "boots"] = Field(
         default="ballet flats", title="Shoe style"
     )
