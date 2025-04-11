@@ -165,6 +165,7 @@ class NiceCRUDCard(FieldHelperMixin, Generic[T]):
         else:
 
             async def default_select_options(field_name: str, obj: T):
+                log.debug(f"default_select_options: {field_name=} {obj=}")
                 return dict()
 
             self.select_options = default_select_options
@@ -269,7 +270,7 @@ class NiceCRUDCard(FieldHelperMixin, Generic[T]):
         ele = None
         if typing.get_origin(typ) in {Union, UnionType}:
             # Optional Fields
-            if len(typing.get_args(typ)) > 1 and typing.get_args(typ)[1] == type(None):
+            if len(typing.get_args(typ)) > 1 and typing.get_args(typ)[1] is type(None):
                 typ = typing.get_args(typ)[0]
                 _optional = True
             # Literal[BaseModel1, BaseModel2]
@@ -321,6 +322,7 @@ class NiceCRUDCard(FieldHelperMixin, Generic[T]):
                 def handle_base_model_switch():
                     """Submodel is selected. Check if class changed to change to dialog later"""
                     nonlocal curval
+                    assert isinstance(curval, BaseModel)
                     if curval.__class__.__name__ != selecta.value:
                         # Save the settings for the current class for later use
                         stordict[curval.__class__.__name__] = curval.model_dump()
@@ -499,13 +501,16 @@ class NiceCRUDCard(FieldHelperMixin, Generic[T]):
         log.debug(f"Saving subitem: {item}")
         if on_save:
             on_save()
+        if self.subitem_dialog is None:
+            log.error("No dialog to close")
+            return
         self.subitem_dialog.close()
 
     @staticmethod
-    def _initialize_with_placeholders(subitem_type: BaseModel):
+    def _initialize_with_placeholders(subitem_type: type[BaseModel]):
         """Initialize a new subitem with placeholder values based on the type of the fields"""
         subitem_data = {}
-        for subfield_name, subfield_info in subitem_type.model_fields.items():
+        for subfield_name, subfield_info in subitem_type.__class__.model_fields.items():
             if not subfield_info.is_required():
                 continue
             if subfield_info.default is not PydanticUndefined:
@@ -588,8 +593,6 @@ class NiceCRUD(FieldHelperMixin[T], Generic[T]):
             return basemodels[0]
         elif isinstance(basemodels, dict):
             return next(iter(basemodels.values()))
-        else:
-            raise KeyError("No basemodels given")
 
     def add_resize_trigger(self):
         """When the width of the browser window is reduced, the event "smaller"
@@ -848,7 +851,7 @@ class NiceCRUD(FieldHelperMixin[T], Generic[T]):
                 f"({self.config.id_label}={obj_id}) does not exist"
             )
 
-    async def select_options(self, field_name: str, obj: T) -> dict:
+    async def select_options(self, field_name: str, _: T) -> dict:
         """Get the select options for a field: Extend / Overwrite this method
         and include database commands
 
@@ -879,6 +882,8 @@ class NiceCRUD(FieldHelperMixin[T], Generic[T]):
         """Extra callback that is triggered when field_name str was changed in
         the input Overwrite this method and include some changes to the
         object"""
+        log.debug(f"on_change_extra for {field_name=}")
+        log.debug(f"on_change_extra for {obj=}")
         return
 
     @ui.refreshable
@@ -999,8 +1004,6 @@ class NiceCRUD(FieldHelperMixin[T], Generic[T]):
                     raise NotImplementedError(f"No template for {self.basemodeltype.__name__}")
 
                 async def save_action():
-                    if item is None:
-                        raise TypeError(f"Item {item} is non-existent")
                     await self.save_create(item)
             else:
                 edit = True

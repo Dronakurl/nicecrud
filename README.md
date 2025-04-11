@@ -1,11 +1,13 @@
 # NiceCRUD
 
+<!-- markdownlint-disable line-length -->
+
 NiceCRUD is a CRUD (Create, Read, Update, Delete) interface built with python. The library integrates with pydantic models and [NiceGUI](https://nicegui.io) to handle data manipulation with a browser interface.
 
 ## Features
 
 - Automatically generate CRUD interfaces from pydantic models.
-- Field options, ranges, contraints, descriptions etc. are directly taken from your pydantic model
+- Field options, ranges, constraints, descriptions etc. are directly taken from your pydantic model
 - Integrated validation and error handling with pydantic.
 - Support for nested models and selection options.
 - Inject your own (database?) update methods
@@ -54,6 +56,7 @@ ui.run()
 ```
 
 Find more in the [examples](/examples) folder.
+
 | Example Name    | Description                             |
 |-----------------|-----------------------------------------|
 | [minimal](/examples/minimal.py)         | The above minimal example |
@@ -65,6 +68,15 @@ Find more in the [examples](/examples) folder.
 ## Contributing
 
 Contributions are welcome!
+
+### Publishing new versions
+
+Make sure that the environment variable `UV_PUBLISH_TOKEN` is set to a pypi secret token.
+
+```bash
+uv build
+uv publish
+```
 
 ## License
 

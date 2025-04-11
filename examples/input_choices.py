@@ -15,7 +15,7 @@ from pydantic import (
 from niceguicrud import FieldOptions, NiceCRUD, NiceCRUDCard
 from niceguicrud.nicecrud import NiceCRUDField
 
-log = logging.getLogger("nicecrud")
+log = logging.getLogger("niceguicrud")
 log.setLevel(logging.DEBUG)
 console_handler = logging.StreamHandler()
 console_handler.setFormatter(logging.Formatter("%(levelname)s - %(name)s - %(message)s"))
