@@ -4,7 +4,7 @@ import html
 import logging
 import re
 import typing
-from datetime import date
+from datetime import date, datetime, time
 from functools import partial
 from types import UnionType
 from typing import Awaitable, Callable, Generic, Literal, Optional, Type, TypeVar, Union
@@ -382,6 +382,7 @@ class NiceCRUDCard(FieldHelperMixin, Generic[T]):
             )
             if _optional:
                 ele.props("clearable")
+
         ## .. Date
         elif typ is date:
             with ui.input(value=curval, validation=validation) as dates:
@@ -392,6 +393,55 @@ class NiceCRUDCard(FieldHelperMixin, Generic[T]):
                 with dates.add_slot("append"):
                     ui.icon("edit_calendar").on("click", menu.open).classes("cursor-pointer")
             ele = dates
+
+        ## .. Time
+        elif typ is time:
+            with ui.input(value=curval, validation=validation) as times:
+                with ui.menu().props("no-parent-event") as menu:
+                    with ui.time().bind_value(times):
+                        with ui.row().classes("justify-end"):
+                            ui.button("Close", on_click=menu.close).props("flat")
+                with times.add_slot("append"):
+                    ui.icon("access_time").on("click", menu.open).classes("cursor-pointer")
+            ele = times
+
+        ## .. Datetime
+        elif typ is datetime:
+
+            def update_datetime():
+                log.debug(
+                    f"update_datetime: {dateinput.value=} {timeinput.value=} {type(timeinput.value)=}"
+                )
+                mydate = (
+                    dateinput.value
+                    if isinstance(dateinput.value, date)
+                    else datetime.fromisoformat(dateinput.value)
+                )
+                mytime = (
+                    timeinput.value
+                    if isinstance(timeinput.value, time)
+                    else time.fromisoformat(timeinput.value)
+                )
+                datetimes.value = datetime.combine(mydate, mytime)
+
+            with ui.input(value=curval, validation=validation) as datetimes:
+                with ui.menu().props("no-parent-event") as menu:
+                    with ui.row():
+                        dateinput = (
+                            ui.date()
+                            .bind_value_from(datetimes, backward=lambda x: x.date())
+                            .on_value_change(update_datetime)
+                        )
+                        timeinput = (
+                            ui.time()
+                            .bind_value_from(datetimes, backward=lambda x: x.time())
+                            .on_value_change(update_datetime)
+                        )
+                    with ui.row().classes("justify-end"):
+                        ui.button("Close", on_click=menu.close).props("flat")
+                with datetimes.add_slot("append"):
+                    ui.icon("edit_calendar").on("click", menu.open).classes("cursor-pointer")
+            ele = datetimes
 
         ## .. Numbers
         elif typ in (int, float):

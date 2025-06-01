@@ -31,9 +31,9 @@ def nicecrud_instance(mock_model_list, nicecrud_config):
 
 def test_inferbasemodel(mock_model_list):
     nn = NiceCRUD(basemodels=mock_model_list, id_field="id")
-    assert (
-        nn.basemodeltype == MockModel
-    ), "BaseModel typ is inferred from first element if necessary"
+    assert nn.basemodeltype == MockModel, (
+        "BaseModel typ is inferred from first element if necessary"
+    )
 
 
 def test_nicecrud_initialization(nicecrud_instance):
