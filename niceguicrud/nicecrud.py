@@ -282,7 +282,7 @@ class NiceCRUDCard(FieldHelperMixin, Generic[T]):
         # Generate the UI elements
         ele = None
         if typing.get_origin(typ) in {Union, UnionType}:
-            # Optional Fields
+            # Prepare for optional Fields
             if len(typing.get_args(typ)) > 1 and typing.get_args(typ)[1] is type(None):
                 typ = typing.get_args(typ)[0]
                 _optional = True
@@ -290,7 +290,14 @@ class NiceCRUDCard(FieldHelperMixin, Generic[T]):
             elif all([issubclass(x, BaseModel) for x in typing.get_args(typ)]):
                 _input_type = "basemodelswitcher"
         log.debug(f"{field_name=} {_input_type=} {typ=} {typing.get_origin(typ)=} ")
-        if _input_type in ("select", "multiselect"):
+
+        ## Catch errors
+        if typ is None:
+            log.error(f"no type found for {self.item}")
+            ui.label("ERROR")
+
+        ## .. Selection
+        elif _input_type in ("select", "multiselect"):
             if _selections is not None:
                 assert isinstance(_selections, dict)
                 select_options_dict: dict[str, str] = _selections  # type: ignore
@@ -316,6 +323,7 @@ class NiceCRUDCard(FieldHelperMixin, Generic[T]):
                 validation=validation if typing.get_origin(typ) is not dict else list_to_dictval,
                 multiple=_input_type == "multiselect",
             ).props("use-chips" if _input_type == "multiselect" else "")
+        ## .. Different BaseModels
         elif _input_type == "basemodelswitcher":
             typemapper = {x.__name__: x for x in typing.get_args(typ)}
             selections = {
@@ -365,9 +373,8 @@ class NiceCRUDCard(FieldHelperMixin, Generic[T]):
                     .props("flat round")
                     .classes("text-lightprimary dark:primary")
                 )
-        elif typ is None:
-            log.error(f"no type found for {self.item}")
-            ui.label("ERROR")
+
+        ## .. Simple string
         elif typ is str:
             # String Inputs
             ele = ui.input(
@@ -375,6 +382,7 @@ class NiceCRUDCard(FieldHelperMixin, Generic[T]):
             )
             if _optional:
                 ele.props("clearable")
+        ## .. Date
         elif typ is date:
             with ui.input(value=curval, validation=validation) as dates:
                 with ui.menu().props("no-parent-event") as menu:
@@ -384,6 +392,8 @@ class NiceCRUDCard(FieldHelperMixin, Generic[T]):
                 with dates.add_slot("append"):
                     ui.icon("edit_calendar").on("click", menu.open).classes("cursor-pointer")
             ele = dates
+
+        ## .. Numbers
         elif typ in (int, float):
             # Number inputs
             if _input_type == "number" or _input_type is None or _min is None or _max is None:
@@ -405,14 +415,20 @@ class NiceCRUDCard(FieldHelperMixin, Generic[T]):
                     max=_max,
                     step=_step,  # type: ignore
                 ).props("label-always").classes("my-4")
+
+        ## .. String literal
         elif typing.get_origin(typ) == Literal:
             ele = ui.select(
                 [x for x in typing.get_args(typ)],
                 value=curval,
                 validation=validation_refresh,
             )
+
+        ## .. Boolean
         elif typ is bool:
             ele = ui.switch(value=curval, on_change=validation_refresh)
+
+        ## .. another BaseModel
         elif typ == BaseModel or (isinstance(typ, type) and issubclass(typ, BaseModel)):
             with ui.row().classes("items-center justify-shrink w-full flex-nowrap"):
                 lab = ui.label(str(curval.model_dump(context=dict(gui=True)))).classes(
@@ -424,6 +440,8 @@ class NiceCRUDCard(FieldHelperMixin, Generic[T]):
                     .props("flat round")
                     .classes("text-lightprimary dark:primary")
                 )
+
+        ## .. a list of basemodels
         elif typing.get_origin(typ) is list and issubclass(typing.get_args(typ)[0], BaseModel):
             if not curval:
                 curval = []
@@ -445,6 +463,8 @@ class NiceCRUDCard(FieldHelperMixin, Generic[T]):
                         icon="add",
                         on_click=partial(self.handle_add_list_subitem, field_name, field_info),
                     ).props("flat round")
+
+        ## .. list of strings
         elif typing.get_origin(typ) in (list, set) and typing.get_args(typ)[0] is str:
             ele = ui.input(value=",".join(curval), validation=lambda v: validation(v.split(",")))
         elif typing.get_origin(typ) is list and issubclass(typing.get_args(typ)[0], (int, float)):
