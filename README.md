@@ -35,7 +35,6 @@ pip install niceguicrud
 Here is a very basic example:
 
 ```python
-
 from nicegui import ui
 from pydantic import BaseModel, Field
 
@@ -63,6 +62,7 @@ Find more in the [examples](/examples) folder.
 | [validation](/examples/validation.py)      | Example showcasing how pydantic validation features are used in the GUI |
 | [submodel](/examples/submodel.py)        | Demonstrates usage of a pydantic submodel that can also be used in the GUI.        |
 | [input_choices](/examples/input_choices.py)   | Shows the different input choices.   |
+| [list of models](/examples/list_of_models.py)   | Use a list of basemodels   |
 | [database](/examples/database.py)   | Shows how to customize the update, create and delete operations |
 
 ## Contributing

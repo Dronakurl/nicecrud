@@ -279,6 +279,7 @@ class NiceCRUDCard(FieldHelperMixin, Generic[T]):
             _readonly = extra.get("readonly", False)
             _selections = extra.get("selections")
         _optional = False
+
         # Generate the UI elements
         ele = None
         if typing.get_origin(typ) in {Union, UnionType}:
@@ -323,6 +324,7 @@ class NiceCRUDCard(FieldHelperMixin, Generic[T]):
                 validation=validation if typing.get_origin(typ) is not dict else list_to_dictval,
                 multiple=_input_type == "multiselect",
             ).props("use-chips" if _input_type == "multiselect" else "")
+
         ## .. Different BaseModels
         elif _input_type == "basemodelswitcher":
             typemapper = {x.__name__: x for x in typing.get_args(typ)}
@@ -382,6 +384,7 @@ class NiceCRUDCard(FieldHelperMixin, Generic[T]):
             )
             if _optional:
                 ele.props("clearable")
+
         ## .. Date
         elif typ is date:
             with ui.input(value=curval, validation=validation) as dates:
@@ -466,7 +469,33 @@ class NiceCRUDCard(FieldHelperMixin, Generic[T]):
 
         ## .. list of strings
         elif typing.get_origin(typ) in (list, set) and typing.get_args(typ)[0] is str:
-            ele = ui.input(value=",".join(curval), validation=lambda v: validation(v.split(",")))
+            if not curval:
+                curval = []
+            assert all(isinstance(x, str) for x in curval), (
+                "Only strings or only BaseModels are allowed in list"
+            )
+            with ui.list().classes("w-full").props("bordered separator"):
+                for i, subitem in enumerate(curval):
+                    with ui.item():
+                        with ui.item_section() as lab_cont:
+                            lab = ui.label(subitem)
+                        with ui.item_section() as input_cont:
+                            input = ui.input(value=subitem, on_change=validation)
+                            ui.button(icon="check")
+                        with ui.item_section().props("side"):
+                            clickfun = partial(self.handle_edit_subitem_str, subitem, lab)
+                            ui.button(icon="edit", on_click=clickfun).props("flat round")
+                        with ui.item_section().props("side"):
+                            ui.button(
+                                icon="delete",
+                                on_click=partial(self.handle_delete_list_subitem, field_name, i),
+                            ).props("flat round")
+                with ui.item():
+                    ui.button(
+                        icon="add",
+                        on_click=partial(self.handle_add_list_subitem, field_name, field_info),
+                    ).props("flat round")
+            # ele = ui.input(value=",".join(curval), validation=lambda v: validation(v.split(",")))
         elif typing.get_origin(typ) is list and issubclass(typing.get_args(typ)[0], (int, float)):
             ele = ui.input(
                 value=",".join(map(str, curval)), validation=lambda v: validation(v.split(","))
@@ -579,6 +608,9 @@ class NiceCRUDCard(FieldHelperMixin, Generic[T]):
         log.debug(f"Initialized subitem data: {subitem_data}")
 
         return subitem_type(**subitem_data)
+
+    def handle_edit_subitem_str(self, curval: str, lab: ui.label):
+        log.debug(f"handle_edit_subitem {curval}")
 
 
 class NiceCRUD(FieldHelperMixin[T], Generic[T]):
