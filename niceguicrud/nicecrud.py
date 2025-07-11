@@ -6,6 +6,7 @@ import re
 import typing
 from datetime import date, datetime, time
 from functools import partial
+from pathlib import Path
 from types import UnionType
 from typing import Awaitable, Callable, Generic, Literal, Optional, Type, TypeVar, Union
 
@@ -204,6 +205,9 @@ class NiceCRUDCard(FieldHelperMixin, Generic[T]):
                 getattr(self.item, attr), int
             ):
                 value = None if value is None else int(value)
+            # Ensure, that Path remains Path
+            if isinstance(getattr(self.item, attr), Path):
+                value = None if value is None else Path(value)
             setattr(self.item, attr, value)
             val_result = True
         except ValidationError as e:
@@ -323,6 +327,7 @@ class NiceCRUDCard(FieldHelperMixin, Generic[T]):
                 validation=validation if typing.get_origin(typ) is not dict else list_to_dictval,
                 multiple=_input_type == "multiselect",
             ).props("use-chips" if _input_type == "multiselect" else "")
+
         ## .. Different BaseModels
         elif _input_type == "basemodelswitcher":
             typemapper = {x.__name__: x for x in typing.get_args(typ)}
@@ -379,6 +384,16 @@ class NiceCRUDCard(FieldHelperMixin, Generic[T]):
             # String Inputs
             ele = ui.input(
                 value=curval, validation=validation, placeholder=field_info.description or ""
+            )
+            if _optional:
+                ele.props("clearable")
+
+        ## .. Path
+        elif typ is Path:
+            value = str(curval)
+
+            ele = ui.input(
+                value=value, validation=validation, placeholder=field_info.description or ""
             )
             if _optional:
                 ele.props("clearable")
