@@ -4,7 +4,9 @@ import html
 import logging
 import re
 import typing
+from datetime import date, datetime, time
 from functools import partial
+from pathlib import Path
 from types import UnionType
 from typing import Awaitable, Callable, Generic, Literal, Optional, Type, TypeVar, Union
 
@@ -35,8 +37,20 @@ class FieldOptions(BaseModel, title="Options that can be set in each Field in js
 
 
 def NiceCRUDField(
-    *args, title: str | None = None, nicecrud_options: FieldOptions | None = None, **kwargs
+    *args,
+    title: str | None = None,
+    nicecrud_options: FieldOptions | None = None,
+    **kwargs,
 ):
+    """Just like pydantic.Field but with extra options for NiceCRUD, that are
+       stored in json_schema_extra
+
+    Args:
+        title: [TODO:description]
+        nicecrud_options: FieldOptions
+        *args: passed through to Field
+        **kwargs: passed through to Field
+    """
     json_schema_extra = nicecrud_options.model_dump() if nicecrud_options is not None else None
     if "json_schema_extra" in kwargs:
         log.warning("Use json_schema_extra *or* nicecrud_options with NiceCRUDField")
@@ -85,7 +99,7 @@ class NiceCRUDConfig(BaseModel, title="Options for a NiceCRUD instance", validat
 
 
 # NiceCRUD can be used with any pydantic BaseModel. T is the generic type
-# that is a placeholder for the specific model
+# that is a placeholder for the specific BaseModel subclass.
 T = TypeVar("T", bound=BaseModel)
 
 
@@ -137,7 +151,7 @@ class NiceCRUDCard(FieldHelperMixin, Generic[T]):
     This is separate, so that it can be used stand alone.
 
     Attributes:
-        item: The BaseModel object
+        item: BaseModel (or subclass) object
         config: NiceCRUDConfig
         id_editable: sets if the config.id_field should be editable or not
         select_options: awaitable coroutine taking the field_name and one BaseModel object,
@@ -165,6 +179,7 @@ class NiceCRUDCard(FieldHelperMixin, Generic[T]):
         else:
 
             async def default_select_options(field_name: str, obj: T):
+                log.debug(f"default_select_options: {field_name=} {obj=}")
                 return dict()
 
             self.select_options = default_select_options
@@ -190,6 +205,9 @@ class NiceCRUDCard(FieldHelperMixin, Generic[T]):
                 getattr(self.item, attr), int
             ):
                 value = None if value is None else int(value)
+            # Ensure, that Path remains Path
+            if isinstance(getattr(self.item, attr), Path):
+                value = None if value is None else Path(value)
             setattr(self.item, attr, value)
             val_result = True
         except ValidationError as e:
@@ -207,7 +225,7 @@ class NiceCRUDCard(FieldHelperMixin, Generic[T]):
             self.on_change_extra(attr, self.item)
         self.on_validation_result(val_result)
         if refresh:
-            self.create_card.refresh()  # pyright: ignore
+            self.create_card.refresh()
 
     @ui.refreshable
     async def create_card(self):
@@ -282,15 +300,22 @@ class NiceCRUDCard(FieldHelperMixin, Generic[T]):
         # Generate the UI elements
         ele = None
         if typing.get_origin(typ) in {Union, UnionType}:
-            # Optional Fields
-            if len(typing.get_args(typ)) > 1 and typing.get_args(typ)[1] == type(None):
+            # Prepare for optional Fields
+            if len(typing.get_args(typ)) > 1 and typing.get_args(typ)[1] is type(None):
                 typ = typing.get_args(typ)[0]
                 _optional = True
             # Literal[BaseModel1, BaseModel2]
             elif all([issubclass(x, BaseModel) for x in typing.get_args(typ)]):
                 _input_type = "basemodelswitcher"
         log.debug(f"{field_name=} {_input_type=} {typ=} {typing.get_origin(typ)=} ")
-        if _input_type in ("select", "multiselect"):
+
+        ## Catch errors
+        if typ is None:
+            log.error(f"no type found for {self.item}")
+            ui.label("ERROR")
+
+        ## .. Selection
+        elif _input_type in ("select", "multiselect"):
             if _selections is not None:
                 assert isinstance(_selections, dict)
                 select_options_dict: dict[str, str] = _selections  # type: ignore
@@ -316,6 +341,8 @@ class NiceCRUDCard(FieldHelperMixin, Generic[T]):
                 validation=validation if typing.get_origin(typ) is not dict else list_to_dictval,
                 multiple=_input_type == "multiselect",
             ).props("use-chips" if _input_type == "multiselect" else "")
+
+        ## .. Different BaseModels
         elif _input_type == "basemodelswitcher":
             typemapper = {x.__name__: x for x in typing.get_args(typ)}
             selections = {
@@ -335,6 +362,7 @@ class NiceCRUDCard(FieldHelperMixin, Generic[T]):
                 def handle_base_model_switch():
                     """Submodel is selected. Check if class changed to change to dialog later"""
                     nonlocal curval
+                    assert isinstance(curval, BaseModel)
                     if curval.__class__.__name__ != selecta.value:
                         # Save the settings for the current class for later use
                         stordict[curval.__class__.__name__] = curval.model_dump()
@@ -364,9 +392,8 @@ class NiceCRUDCard(FieldHelperMixin, Generic[T]):
                     .props("flat round")
                     .classes("text-lightprimary dark:primary")
                 )
-        elif typ is None:
-            log.error(f"no type found for {self.item}")
-            ui.label("ERROR")
+
+        ## .. Simple string
         elif typ is str:
             # String Inputs
             if _input_type == "textarea":
@@ -377,6 +404,78 @@ class NiceCRUDCard(FieldHelperMixin, Generic[T]):
                 )
             if _optional:
                 ele.props("clearable")
+
+        ## .. Path
+        elif typ is Path:
+            value = str(curval)
+
+            ele = ui.input(
+                value=value, validation=validation, placeholder=field_info.description or ""
+            )
+            if _optional:
+                ele.props("clearable")
+
+        ## .. Date
+        elif typ is date:
+            with ui.input(value=curval, validation=validation) as dates:
+                with ui.menu().props("no-parent-event") as menu:
+                    with ui.date().bind_value(dates):
+                        with ui.row().classes("justify-end"):
+                            ui.button("Close", on_click=menu.close).props("flat")
+                with dates.add_slot("append"):
+                    ui.icon("edit_calendar").on("click", menu.open).classes("cursor-pointer")
+            ele = dates
+
+        ## .. Time
+        elif typ is time:
+            with ui.input(value=curval, validation=validation) as times:
+                with ui.menu().props("no-parent-event") as menu:
+                    with ui.time().bind_value(times):
+                        with ui.row().classes("justify-end"):
+                            ui.button("Close", on_click=menu.close).props("flat")
+                with times.add_slot("append"):
+                    ui.icon("access_time").on("click", menu.open).classes("cursor-pointer")
+            ele = times
+
+        ## .. Datetime
+        elif typ is datetime:
+
+            def update_datetime():
+                log.debug(
+                    f"update_datetime: {dateinput.value=} {timeinput.value=} {type(timeinput.value)=}"
+                )
+                mydate = (
+                    dateinput.value
+                    if isinstance(dateinput.value, date)
+                    else datetime.fromisoformat(dateinput.value)
+                )
+                mytime = (
+                    timeinput.value
+                    if isinstance(timeinput.value, time)
+                    else time.fromisoformat(timeinput.value)
+                )
+                datetimes.value = datetime.combine(mydate, mytime)
+
+            with ui.input(value=curval, validation=validation) as datetimes:
+                with ui.menu().props("no-parent-event") as menu:
+                    with ui.row():
+                        dateinput = (
+                            ui.date()
+                            .bind_value_from(datetimes, backward=lambda x: x.date())
+                            .on_value_change(update_datetime)
+                        )
+                        timeinput = (
+                            ui.time()
+                            .bind_value_from(datetimes, backward=lambda x: x.time())
+                            .on_value_change(update_datetime)
+                        )
+                    with ui.row().classes("justify-end"):
+                        ui.button("Close", on_click=menu.close).props("flat")
+                with datetimes.add_slot("append"):
+                    ui.icon("edit_calendar").on("click", menu.open).classes("cursor-pointer")
+            ele = datetimes
+
+        ## .. Numbers
         elif typ in (int, float):
             # Number inputs
             if _input_type == "number" or _input_type is None or _min is None or _max is None:
@@ -398,14 +497,20 @@ class NiceCRUDCard(FieldHelperMixin, Generic[T]):
                     max=_max,
                     step=_step,  # type: ignore
                 ).props("label-always").classes("my-4")
+
+        ## .. String literal
         elif typing.get_origin(typ) == Literal:
             ele = ui.select(
                 [x for x in typing.get_args(typ)],
                 value=curval,
                 validation=validation_refresh,
             )
+
+        ## .. Boolean
         elif typ is bool:
             ele = ui.switch(value=curval, on_change=validation_refresh)
+
+        ## .. another BaseModel
         elif typ == BaseModel or (isinstance(typ, type) and issubclass(typ, BaseModel)):
             with ui.row().classes("items-center justify-shrink w-full flex-nowrap"):
                 lab = ui.label(str(curval.model_dump(context=dict(gui=True)))).classes(
@@ -417,6 +522,8 @@ class NiceCRUDCard(FieldHelperMixin, Generic[T]):
                     .props("flat round")
                     .classes("text-lightprimary dark:primary")
                 )
+
+        ## .. a list of basemodels
         elif typing.get_origin(typ) is list and issubclass(typing.get_args(typ)[0], BaseModel):
             if not curval:
                 curval = []
@@ -438,6 +545,8 @@ class NiceCRUDCard(FieldHelperMixin, Generic[T]):
                         icon="add",
                         on_click=partial(self.handle_add_list_subitem, field_name, field_info),
                     ).props("flat round")
+
+        ## .. list of strings
         elif typing.get_origin(typ) in (list, set) and typing.get_args(typ)[0] is str:
             ele = ui.input(value=",".join(curval), validation=lambda v: validation(v.split(",")))
         elif typing.get_origin(typ) is list and issubclass(typing.get_args(typ)[0], (int, float)):
@@ -516,13 +625,16 @@ class NiceCRUDCard(FieldHelperMixin, Generic[T]):
         log.debug(f"Saving subitem: {item}")
         if on_save:
             on_save()
+        if self.subitem_dialog is None:
+            log.error("No dialog to close")
+            return
         self.subitem_dialog.close()
 
     @staticmethod
-    def _initialize_with_placeholders(subitem_type: BaseModel):
+    def _initialize_with_placeholders(subitem_type: type[BaseModel]):
         """Initialize a new subitem with placeholder values based on the type of the fields"""
         subitem_data = {}
-        for subfield_name, subfield_info in subitem_type.model_fields.items():
+        for subfield_name, subfield_info in subitem_type.__class__.model_fields.items():
             if not subfield_info.is_required():
                 continue
             if subfield_info.default is not PydanticUndefined:
@@ -605,8 +717,6 @@ class NiceCRUD(FieldHelperMixin[T], Generic[T]):
             return basemodels[0]
         elif isinstance(basemodels, dict):
             return next(iter(basemodels.values()))
-        else:
-            raise KeyError("No basemodels given")
 
     def add_resize_trigger(self):
         """When the width of the browser window is reduced, the event "smaller"
@@ -865,7 +975,7 @@ class NiceCRUD(FieldHelperMixin[T], Generic[T]):
                 f"({self.config.id_label}={obj_id}) does not exist"
             )
 
-    async def select_options(self, field_name: str, obj: T) -> dict:
+    async def select_options(self, field_name: str, _: T) -> dict:
         """Get the select options for a field: Extend / Overwrite this method
         and include database commands
 
@@ -896,6 +1006,8 @@ class NiceCRUD(FieldHelperMixin[T], Generic[T]):
         """Extra callback that is triggered when field_name str was changed in
         the input Overwrite this method and include some changes to the
         object"""
+        log.debug(f"on_change_extra for {field_name=}")
+        log.debug(f"on_change_extra for {obj=}")
         return
 
     @ui.refreshable
@@ -1016,8 +1128,6 @@ class NiceCRUD(FieldHelperMixin[T], Generic[T]):
                     raise NotImplementedError(f"No template for {self.basemodeltype.__name__}")
 
                 async def save_action():
-                    if item is None:
-                        raise TypeError(f"Item {item} is non-existent")
                     await self.save_create(item)
             else:
                 edit = True

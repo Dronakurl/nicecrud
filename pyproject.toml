@@ -1,28 +1,29 @@
-[tool.poetry]
+[project]
 name = "niceguicrud"
-version = "0.1.6"
+version = "0.1.10"
 description = "Edit your pydantic models with a nice GUI - CRUD Create Update Replace Delete"
-authors = ["Dronakurl <tbo73oij5@mozmail.com>"]
 readme = "README.md"
+requires-python = ">=3.12"
 license = "MIT"
-package-mode = true
+dependencies = ["nicegui"]
 
-[tool.poetry.dependencies]
-python = "^3.10"
-nicegui = "*"
+[[project.authors]]
+name = "Dronakurl"
+email = "tbo73oij5@mozmail.com"
 
-[tool.poetry.group.dev.dependencies]
-pytest = "*"
-pytest-asyncio = "*"
-pre-commit = "*"
+[tool.uv]
+dev-dependencies = ["pytest", "pytest-asyncio", "pre-commit"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [tool.pytest.ini_options]
 addopts = [
   "--import-mode=importlib",
-  "-ra -q",
-  "--disable-warnings",
   "--ignore=.archiv",
   "--ignore=scripts",
+  "--no-header",
 ]
 asyncio_mode = "auto"
 pythonpath = ["."]
@@ -32,17 +33,5 @@ testpaths = ["tests"]
 line-length = 100
 exclude = ["**/__init__.py"]
 
-[tool.basedpyright]
-include = ["**/*.py"]
-exclude = ["**/__pycache__", ".archiv/**"]
-ignore = ["**/__init__.py"]
-pythonVersion = "3.12"
-pythonPlatform = "Linux"
-reportUnusedImport = false
-
 [tool.black]
 line-length = 100
-
-[build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"

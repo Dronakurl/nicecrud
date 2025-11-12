@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field, model_validator
 
 from niceguicrud import NiceCRUD, NiceCRUDConfig
 
-log = logging.getLogger("nicecrud")
+log = logging.getLogger("niceguicrud")
 log.setLevel(logging.DEBUG)
 console_handler = logging.StreamHandler()
 console_handler.setFormatter(logging.Formatter("%(levelname)s - %(name)s - %(message)s"))
