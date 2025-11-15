@@ -22,4 +22,4 @@ NiceCRUDCard(xx)
 
 ui.button("show", on_click=lambda: ui.notify(str(xx.example) + str(type(xx.example))))
 
-ui.run()
+ui.run(show=False)

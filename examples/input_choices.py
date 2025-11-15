@@ -217,4 +217,4 @@ async def nicecrud_card():
 
 
 if __name__ in {"__main__", "__mp_main__"}:
-    ui.run(title="NiceguiCRUD Showcase - Shoes", favicon="👞")
+    ui.run(title="NiceguiCRUD Showcase - Shoes", favicon="👞", show=False)

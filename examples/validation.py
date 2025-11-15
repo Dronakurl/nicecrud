@@ -35,4 +35,4 @@ crud_config = NiceCRUDConfig(id_field="id", heading="Character Database")
 
 crud_app = NiceCRUD(basemodeltype=Character, basemodels=[instance1, instance2], config=crud_config)
 
-ui.run()
+ui.run(show=False)
