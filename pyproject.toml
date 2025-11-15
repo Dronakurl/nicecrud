@@ -1,6 +1,6 @@
 [project]
 name = "niceguicrud"
-version = "0.1.10"
+version = "0.1.11"
 description = "Edit your pydantic models with a nice GUI - CRUD Create Update Replace Delete"
 readme = "README.md"
 requires-python = ">=3.12"
