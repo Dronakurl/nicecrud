@@ -33,49 +33,82 @@ class CollectionHandler:
         return False
 
     def create_widget(self, context: InputContext) -> ui.element:
-        """Create input widget with comma-separated values."""
+        """Create list widget with add/remove buttons for each item."""
         current_value = context.current_value or []
 
         # Get the element type
         args = typing.get_args(context.field_info.annotation)
         element_type = args[0] if args else str
 
-        # Convert list to comma-separated string
-        if current_value:
-            value_str = ", ".join(str(v) for v in current_value)
-        else:
-            value_str = ""
+        # Create a mutable container for the list
+        items = list(current_value)
 
-        def parse_and_validate(value_str: str):
-            """Parse comma-separated string into list and validate."""
-            if not value_str or not value_str.strip():
-                context.validation_callback([])
-                return
+        def update_list():
+            """Update the list and trigger validation."""
+            context.validation_callback(items)
 
+        def add_item():
+            """Add a new item to the list."""
+            # Default values by type
+            if element_type is int:
+                default_value = 0
+            elif element_type is float:
+                default_value = 0.0
+            else:
+                default_value = ""
+
+            items.append(default_value)
+            update_list()
+            list_container.clear()
+            with list_container:
+                render_items()
+
+        def remove_item(index: int):
+            """Remove an item from the list."""
+            items.pop(index)
+            update_list()
+            list_container.clear()
+            with list_container:
+                render_items()
+
+        def update_item(index: int, value: str):
+            """Update an item in the list."""
             try:
-                # Split by comma and strip whitespace
-                parts = [p.strip() for p in value_str.split(",") if p.strip()]
-
-                # Convert to appropriate type
                 if element_type is int:
-                    parsed = [int(p) for p in parts]
+                    items[index] = int(value) if value else 0
                 elif element_type is float:
-                    parsed = [float(p) for p in parts]
+                    items[index] = float(value) if value else 0.0
                 else:
-                    parsed = parts
-
-                context.validation_callback(parsed)
+                    items[index] = value
+                update_list()
             except (ValueError, TypeError) as e:
-                logger.warning(f"Failed to parse collection: {value_str}, error: {e}")
-                # Keep the string value but don't validate
-                pass
+                logger.warning(f"Failed to parse value: {value}, error: {e}")
 
-        widget = ui.input(
-            value=value_str,
-            on_change=lambda e: parse_and_validate(e.value),
-            placeholder=f"Enter comma-separated {element_type.__name__} values",
-        )
+        def render_items():
+            """Render the list of items."""
+            for i, item in enumerate(items):
+                with ui.item():
+                    with ui.item_section():
+                        ui.input(
+                            value=str(item),
+                            on_change=lambda e, idx=i: update_item(idx, e.value),
+                            placeholder=f"{element_type.__name__} value"
+                        ).classes("flex-grow")
+                    with ui.item_section().props("side"):
+                        ui.button(
+                            icon="delete",
+                            on_click=lambda idx=i: remove_item(idx)
+                        ).props("flat round dense").classes("text-red-500")
 
-        widget.tooltip(f"Enter values separated by commas (e.g., value1, value2, value3)")
+            # Add button
+            with ui.item():
+                ui.button(
+                    icon="add",
+                    on_click=add_item
+                ).props("flat round").classes("text-primary")
 
-        return widget
+        # Create the list container
+        with ui.list().classes("w-full").props("bordered separator") as list_container:
+            render_items()
+
+        return list_container
