@@ -44,4 +44,4 @@ another_actress = Actor(
 crud_config = NiceCRUDConfig(id_field="name", heading="Actress Database")
 crud_app = NiceCRUD(basemodels=[actress, another_actress], config=crud_config)
 
-ui.run()
+ui.run(show=False)

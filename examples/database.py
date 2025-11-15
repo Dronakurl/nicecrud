@@ -49,4 +49,4 @@ unicorn2 = Unicorn(id="poncho", horn_length=7.0, color="pink")
 
 crud_app = UnicornCRUD(basemodels=[unicorn1, unicorn2], id_field="id")
 
-ui.run()
+ui.run(show=False)
