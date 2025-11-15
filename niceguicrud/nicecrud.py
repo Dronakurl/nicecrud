@@ -19,6 +19,7 @@ from pydantic_core import PydanticUndefined
 
 from .basemodel_to_table import basemodellist_to_rows_and_cols
 from .show_error import show_error
+from .input_handlers import get_registry, InputContext, NoHandlerFoundError
 
 log = logging.getLogger(__name__)
 log.addHandler(logging.NullHandler())
@@ -204,10 +205,10 @@ class NiceCRUDCard(FieldHelperMixin, Generic[T]):
             if not isinstance(getattr(self.item, attr), bool) and isinstance(
                 getattr(self.item, attr), int
             ):
-                value = None if value is None else int(value)
+                value = None if value is None or value == '' else int(value)
             # Ensure, that Path remains Path
             if isinstance(getattr(self.item, attr), Path):
-                value = None if value is None else Path(value)
+                value = None if value is None or value == '' else Path(value)
             setattr(self.item, attr, value)
             val_result = True
         except ValidationError as e:
@@ -258,73 +259,74 @@ class NiceCRUDCard(FieldHelperMixin, Generic[T]):
         return _max, _min
 
     async def get_input(self, field_name: str, field_info: FieldInfo):
-        """From the field_info, derive the appropriate NiceGUI input element"""
+        """From the field_info, derive the appropriate NiceGUI input element.
+
+        Refactored to use modular input handler system while preserving complex cases.
+        """
         typ = field_info.annotation
         curval = getattr(self.item, field_name)
         validation = partial(self.onchange, attr=field_name)
         validation_refresh = partial(self.onchange, attr=field_name, refresh=True)
 
-        _input_type = None
-        if field_info.description is not None:
-            tooltip_icon = " 💬 "
-        else:
-            tooltip_icon = ""
-
+        # Render field label with tooltip
+        tooltip_icon = " 💬 " if field_info.description else ""
         with ui.label((field_info.title or field_name) + tooltip_icon + ":"):
             if field_info.description is not None:
-
-                # Ok, super hacky, but it works :)
+                # Handle textarea: prefix
                 if field_info.description.startswith("textarea:"):
-                    _input_type = "textarea"
                     field_info_desc = field_info.description[9:]
                 else:
                     field_info_desc = field_info.description
                 with ui.tooltip().classes("text-base"):
                     ui.html(field_info_desc)
-            else:
-                pass
-        _max, _min = self.get_min_max_from_field_info(field_info)
-        # Metadata in json_schema_extra
-        _step = None
 
+        # Extract metadata
+        extra = field_info.json_schema_extra
+        _input_type = None
         _readonly = False
         _selections = None
-        extra = field_info.json_schema_extra
         if extra:
             assert isinstance(extra, dict)
-            _step = extra.get("step")
             _input_type = extra.get("input_type")
             _readonly = extra.get("readonly", False)
             _selections = extra.get("selections")
+
+        # Handle Union types for Optional fields and basemodelswitcher
         _optional = False
-        # Generate the UI elements
-        ele = None
         if typing.get_origin(typ) in {Union, UnionType}:
-            # Prepare for optional Fields
-            if len(typing.get_args(typ)) > 1 and typing.get_args(typ)[1] is type(None):
-                typ = typing.get_args(typ)[0]
+            args = typing.get_args(typ)
+            # Optional[T] case
+            if len(args) > 1 and type(None) in args:
+                typ = args[0]
                 _optional = True
-            # Literal[BaseModel1, BaseModel2]
-            elif all([issubclass(x, BaseModel) for x in typing.get_args(typ)]):
+            # Union[BaseModel1, BaseModel2] case - basemodelswitcher
+            elif all([isinstance(x, type) and issubclass(x, BaseModel) for x in args if x is not type(None)]):
                 _input_type = "basemodelswitcher"
-        log.debug(f"{field_name=} {_input_type=} {typ=} {typing.get_origin(typ)=} ")
 
-        ## Catch errors
-        if typ is None:
-            log.error(f"no type found for {self.item}")
-            ui.label("ERROR")
+        log.debug(f"{field_name=} {_input_type=} {typ=} {typing.get_origin(typ)=}")
 
-        ## .. Selection
-        elif _input_type in ("select", "multiselect"):
-            if _selections is not None:
-                assert isinstance(_selections, dict)
-                select_options_dict: dict[str, str] = _selections  # type: ignore
-            else:
-                select_options_dict = await self.select_options(field_name, self.item)
+        # Extract min/max for numeric types (needed for handler context and legacy code)
+        _min, _max = None, None
+        if typ in (int, float):
+            _max, _min = self.get_min_max_from_field_info(field_info)
+
+        # Extract step size
+        _step = None
+        if extra and isinstance(extra, dict):
+            _step = extra.get("step")
+
+        ele = None
+
+        # Complex cases that need NiceCRUDCard methods (can't delegate to simple handlers yet)
+        # These will be refactored in future iterations
+
+        ## .. Selection with dynamic options (needs self.select_options)
+        if _input_type in ("select", "multiselect") and _selections is None:
+            # Dynamic selection requires async call to self.select_options
+            select_options_dict = await self.select_options(field_name, self.item)
             if len(select_options_dict) == 0 and curval:
                 select_options_dict = {curval: curval}
             log.debug(f"{field_name=}: selections = {select_options_dict}")
-            log.debug(f"{field_name=}: {typing.get_origin(typ)=}")
             if (
                 _input_type != "multiselect"
                 and curval not in select_options_dict
@@ -342,7 +344,7 @@ class NiceCRUDCard(FieldHelperMixin, Generic[T]):
                 multiple=_input_type == "multiselect",
             ).props("use-chips" if _input_type == "multiselect" else "")
 
-        ## .. Different BaseModels
+        ## .. Different BaseModels switcher (needs complex logic)
         elif _input_type == "basemodelswitcher":
             typemapper = {x.__name__: x for x in typing.get_args(typ)}
             selections = {
@@ -393,124 +395,7 @@ class NiceCRUDCard(FieldHelperMixin, Generic[T]):
                     .classes("text-lightprimary dark:primary")
                 )
 
-        ## .. Simple string
-        elif typ is str:
-            # String Inputs
-            if _input_type == "textarea":
-                ele = ui.textarea(value=curval, validation=validation)
-            else:
-                ele = ui.input(
-                    value=curval, validation=validation, placeholder=field_info.description or ""
-                )
-            if _optional:
-                ele.props("clearable")
-
-        ## .. Path
-        elif typ is Path:
-            value = str(curval)
-
-            ele = ui.input(
-                value=value, validation=validation, placeholder=field_info.description or ""
-            )
-            if _optional:
-                ele.props("clearable")
-
-        ## .. Date
-        elif typ is date:
-            with ui.input(value=curval, validation=validation) as dates:
-                with ui.menu().props("no-parent-event") as menu:
-                    with ui.date().bind_value(dates):
-                        with ui.row().classes("justify-end"):
-                            ui.button("Close", on_click=menu.close).props("flat")
-                with dates.add_slot("append"):
-                    ui.icon("edit_calendar").on("click", menu.open).classes("cursor-pointer")
-            ele = dates
-
-        ## .. Time
-        elif typ is time:
-            with ui.input(value=curval, validation=validation) as times:
-                with ui.menu().props("no-parent-event") as menu:
-                    with ui.time().bind_value(times):
-                        with ui.row().classes("justify-end"):
-                            ui.button("Close", on_click=menu.close).props("flat")
-                with times.add_slot("append"):
-                    ui.icon("access_time").on("click", menu.open).classes("cursor-pointer")
-            ele = times
-
-        ## .. Datetime
-        elif typ is datetime:
-
-            def update_datetime():
-                log.debug(
-                    f"update_datetime: {dateinput.value=} {timeinput.value=} {type(timeinput.value)=}"
-                )
-                mydate = (
-                    dateinput.value
-                    if isinstance(dateinput.value, date)
-                    else datetime.fromisoformat(dateinput.value)
-                )
-                mytime = (
-                    timeinput.value
-                    if isinstance(timeinput.value, time)
-                    else time.fromisoformat(timeinput.value)
-                )
-                datetimes.value = datetime.combine(mydate, mytime)
-
-            with ui.input(value=curval, validation=validation) as datetimes:
-                with ui.menu().props("no-parent-event") as menu:
-                    with ui.row():
-                        dateinput = (
-                            ui.date()
-                            .bind_value_from(datetimes, backward=lambda x: x.date())
-                            .on_value_change(update_datetime)
-                        )
-                        timeinput = (
-                            ui.time()
-                            .bind_value_from(datetimes, backward=lambda x: x.time())
-                            .on_value_change(update_datetime)
-                        )
-                    with ui.row().classes("justify-end"):
-                        ui.button("Close", on_click=menu.close).props("flat")
-                with datetimes.add_slot("append"):
-                    ui.icon("edit_calendar").on("click", menu.open).classes("cursor-pointer")
-            ele = datetimes
-
-        ## .. Numbers
-        elif typ in (int, float):
-            # Number inputs
-            if _input_type == "number" or _input_type is None or _min is None or _max is None:
-                ele = ui.number(
-                    value=curval,
-                    validation=validation,
-                    min=_min,
-                    max=_max,
-                    step=_step,  # type: ignore
-                )
-                if _optional:
-                    ele.props("clearable")
-            elif _input_type == "slider":
-                # slider is only available when min and max where set (see condition for number)
-                ui.slider(
-                    value=curval,
-                    on_change=validation,
-                    min=_min,
-                    max=_max,
-                    step=_step,  # type: ignore
-                ).props("label-always").classes("my-4")
-
-        ## .. String literal
-        elif typing.get_origin(typ) == Literal:
-            ele = ui.select(
-                [x for x in typing.get_args(typ)],
-                value=curval,
-                validation=validation_refresh,
-            )
-
-        ## .. Boolean
-        elif typ is bool:
-            ele = ui.switch(value=curval, on_change=validation_refresh)
-
-        ## .. another BaseModel
+        ## .. Single BaseModel (needs self.handle_edit_subitem)
         elif typ == BaseModel or (isinstance(typ, type) and issubclass(typ, BaseModel)):
             with ui.row().classes("items-center justify-shrink w-full flex-nowrap"):
                 lab = ui.label(str(curval.model_dump(context=dict(gui=True)))).classes(
@@ -523,8 +408,8 @@ class NiceCRUDCard(FieldHelperMixin, Generic[T]):
                     .classes("text-lightprimary dark:primary")
                 )
 
-        ## .. a list of basemodels
-        elif typing.get_origin(typ) is list and issubclass(typing.get_args(typ)[0], BaseModel):
+        ## .. List of BaseModels (needs self.handle_edit_subitem, etc.)
+        elif typing.get_origin(typ) is list and typing.get_args(typ) and isinstance(typing.get_args(typ)[0], type) and issubclass(typing.get_args(typ)[0], BaseModel):
             if not curval:
                 curval = []
             with ui.list().classes("w-full").props("bordered separator"):
@@ -546,16 +431,26 @@ class NiceCRUDCard(FieldHelperMixin, Generic[T]):
                         on_click=partial(self.handle_add_list_subitem, field_name, field_info),
                     ).props("flat round")
 
-        ## .. list of strings
-        elif typing.get_origin(typ) in (list, set) and typing.get_args(typ)[0] is str:
-            ele = ui.input(value=",".join(curval), validation=lambda v: validation(v.split(",")))
-        elif typing.get_origin(typ) is list and issubclass(typing.get_args(typ)[0], (int, float)):
-            ele = ui.input(
-                value=",".join(map(str, curval)), validation=lambda v: validation(v.split(","))
-            )
+        # Delegate all other types to handler registry
         else:
-            log.warning(f"Unknown input for {field_name=} of {typ=}")
-            ele = ui.input(value="ERROR", validation=validation)
+            try:
+                registry = get_registry()
+                handler = registry.get_handler(field_info)
+                context = InputContext(
+                    field_name=field_name,
+                    field_info=field_info,
+                    current_value=curval,
+                    validation_callback=validation,
+                    config=self.config,
+                    item=self.item
+                )
+                ele = handler.create_widget(context)
+            except NoHandlerFoundError:
+                log.error(f"No handler found for {field_name=} of type {typ=}")
+                ele = ui.input(value="ERROR", on_change=validation)
+            except Exception as e:
+                log.warning(f"Handler {handler.__class__.__name__} failed for {field_name=}: {e}", exc_info=True)
+                ele = ui.input(value=str(curval) if curval else "", on_change=validation)
         if (_readonly and ele is not None) or (
             ele is not None and field_name == self.config.id_field and not self.id_editable
         ):

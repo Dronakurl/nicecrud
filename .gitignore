@@ -170,3 +170,7 @@ cython_debug/
 #.idea/
 /frontend/assets/fonts/*
 pp.py
+# Playwright
+test-results/
+playwright-report/
+playwright/.cache/

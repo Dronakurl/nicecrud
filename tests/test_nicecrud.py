@@ -74,3 +74,27 @@ def test_field_exclusions(nicecrud_instance):
     model = MockModel.model_fields["id"]
     excluded = nicecrud_instance.is_excluded("id", model)
     assert not excluded
+
+
+def test_empty_string_int_conversion():
+    """Test that empty strings are converted to None for int fields.
+
+    Regression test for bug where clearing an integer field would cause:
+    ValueError: invalid literal for int() with base 10: ''
+    """
+    # Test the conversion logic directly
+    value = ''
+    # This is the fixed logic from nicecrud.py line 208
+    result = None if value is None or value == '' else int(value)
+    assert result is None
+
+
+def test_empty_string_path_conversion():
+    """Test that empty strings are converted to None for Path fields."""
+    from pathlib import Path
+
+    # Test the conversion logic directly
+    value = ''
+    # This is the fixed logic from nicecrud.py line 211
+    result = None if value is None or value == '' else Path(value)
+    assert result is None

@@ -12,7 +12,7 @@ name = "Dronakurl"
 email = "tbo73oij5@mozmail.com"
 
 [tool.uv]
-dev-dependencies = ["pytest", "pytest-asyncio", "pre-commit"]
+dev-dependencies = ["pytest", "pytest-asyncio", "pre-commit", "playwright", "pytest-playwright"]
 
 [build-system]
 requires = ["hatchling"]
@@ -28,6 +28,9 @@ addopts = [
 asyncio_mode = "auto"
 pythonpath = ["."]
 testpaths = ["tests"]
+
+[tool.playwright]
+browsers = ["chromium"]
 
 [tool.ruff]
 line-length = 100
