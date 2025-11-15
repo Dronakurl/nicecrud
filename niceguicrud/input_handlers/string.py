@@ -17,33 +17,40 @@ class StringHandler:
     priority: int = 100
 
     def can_handle(self, field_info: FieldInfo) -> bool:
-        """Check if field is str, Path, or has textarea input_type."""
+        """Check if field is str, Path, or has textarea/markdown input_type."""
         if field_info.annotation in (str, Path):
             return True
 
-        # Check for textarea variant in json_schema_extra
+        # Check for textarea/markdown variant in json_schema_extra
         extra = field_info.json_schema_extra
         if extra and isinstance(extra, dict):
-            if extra.get("input_type") == "textarea":
+            if extra.get("input_type") in ("textarea", "markdown"):
                 return True
 
         return False
 
     def create_widget(self, context: InputContext) -> ui.element:
-        """Create string input or textarea widget."""
+        """Create string input, textarea, or markdown widget."""
         current_value = context.current_value or ""
 
-        # Check for textarea variant
+        # Check for special input types
         extra = context.field_info.json_schema_extra
-        is_textarea = False
+        input_type = None
         if extra and isinstance(extra, dict):
-            is_textarea = extra.get("input_type") == "textarea"
+            input_type = extra.get("input_type")
 
         # Check if field is Optional
         is_optional = self._is_optional(context.field_info)
 
-        # Create widget
-        if is_textarea:
+        # Create widget based on input type
+        if input_type == "markdown":
+            # For markdown, use a textarea (markdown rendering handled in display)
+            widget = ui.textarea(
+                value=str(current_value),
+                on_change=lambda e: context.validation_callback(e.value),
+            ).classes('w-full').props('rows=10')
+
+        elif input_type == "textarea":
             widget = ui.textarea(
                 value=str(current_value),
                 on_change=lambda e: context.validation_callback(e.value),
@@ -66,7 +73,8 @@ class StringHandler:
         """Check if field is Optional (Union with None)."""
         import typing
 
-        if typing.get_origin(field_info.annotation) in (typing.Union, typing.get_args(typing.Union)[0].__class__):
+        origin = typing.get_origin(field_info.annotation)
+        if origin is typing.Union:
             args = typing.get_args(field_info.annotation)
             return len(args) > 1 and type(None) in args
         return False
