@@ -176,3 +176,4 @@ playwright-report/
 playwright/.cache/
 .playwright-mcp
 specs/002-version-compatibility
+docs/
