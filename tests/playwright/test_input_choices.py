@@ -127,12 +127,13 @@ def test_string_input_accepts_text(page: Page, input_choices_app):
     page.goto(input_choices_app)
     page.get_by_role("button", name="Add new item").click()
 
-    # Find name input (first input typically)
+    # Find name input - skip the search input (first one) and use the second one
     name_inputs = page.locator("input[type='text']").all()
-    if len(name_inputs) > 0:
-        name_inputs[0].fill("Running Shoes")
+    if len(name_inputs) > 1:
+        # First text input is the search bar, second is the name field in dialog
+        name_inputs[1].fill("Running Shoes")
         page.wait_for_timeout(200)
-        expect(name_inputs[0]).to_have_value("Running Shoes")
+        expect(name_inputs[1]).to_have_value("Running Shoes")
 
 
 def test_boolean_switch_toggles(page: Page, input_choices_app):
