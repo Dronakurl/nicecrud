@@ -40,38 +40,58 @@ def minimal_app(repo_root):
 
     # Create clean environment without pytest markers
     env = os.environ.copy()
-    # Remove pytest-related environment variables
     env.pop('PYTEST_CURRENT_TEST', None)
     for key in list(env.keys()):
         if key.startswith('PYTEST_'):
             env.pop(key, None)
 
-    # Start the app in background
+    print(f"\n🔧 Starting minimal.py server...")
+
+    # Start the app - DON'T capture output since NiceGUI doesn't write to stdout/stderr when redirected
+    # Write output to a temporary file instead
+    import tempfile
+    with tempfile.NamedTemporaryFile(mode='w+', delete=False, suffix='.log') as log_file:
+        log_path = log_file.name
+
     proc = subprocess.Popen(
         [sys.executable, str(example_path)],
-        stdout=subprocess.PIPE,
+        stdout=subprocess.PIPE,  # Still capture to prevent terminal spam
         stderr=subprocess.STDOUT,
         cwd=str(repo_root),
         env=env
     )
 
-    # Wait for server to start
-    time.sleep(5)
+    # Wait for server to be ready by checking port availability
+    import socket
+    max_wait = 10
+    start_time = time.time()
 
-    # Check if process is still running
-    if proc.poll() is not None:
-        output = proc.stdout.read().decode() if proc.stdout else ""
-        raise RuntimeError(f"Example app failed to start. Output: {output}")
+    while time.time() - start_time < max_wait:
+        if proc.poll() is not None:
+            raise RuntimeError(f"Server process died unexpectedly")
+
+        try:
+            with socket.create_connection(("localhost", 8080), timeout=1) as sock:
+                print(f"✅ Server is listening on port 8080")
+                break
+        except (ConnectionRefusedError, socket.timeout):
+            time.sleep(0.5)
+    else:
+        proc.kill()
+        raise RuntimeError(f"Server did not start within {max_wait} seconds")
 
     # Yield the URL
     yield "http://localhost:8080"
 
     # Cleanup: kill the process
+    print(f"🛑 Stopping server...")
     try:
         proc.send_signal(signal.SIGTERM)
         proc.wait(timeout=5)
+        print(f"✅ Server stopped")
     except:
         proc.kill()
+        print(f"⚠️  Server killed forcefully")
 
 
 @pytest.fixture(scope="function")
@@ -85,6 +105,8 @@ def validation_app(repo_root):
         if key.startswith('PYTEST_'):
             env.pop(key, None)
 
+    print(f"\n🔧 Starting validation.py server...")
+
     proc = subprocess.Popen(
         [sys.executable, str(example_path)],
         stdout=subprocess.PIPE,
@@ -93,19 +115,35 @@ def validation_app(repo_root):
         env=env
     )
 
-    time.sleep(5)
+    # Wait for server to be ready by checking port availability
+    import socket
+    max_wait = 10
+    start_time = time.time()
 
-    if proc.poll() is not None:
-        output = proc.stdout.read().decode() if proc.stdout else ""
-        raise RuntimeError(f"Validation app failed to start. Output: {output}")
+    while time.time() - start_time < max_wait:
+        if proc.poll() is not None:
+            raise RuntimeError(f"Server process died unexpectedly")
+
+        try:
+            with socket.create_connection(("localhost", 8080), timeout=1) as sock:
+                print(f"✅ Server is listening on port 8080")
+                break
+        except (ConnectionRefusedError, socket.timeout):
+            time.sleep(0.5)
+    else:
+        proc.kill()
+        raise RuntimeError(f"Server did not start within {max_wait} seconds")
 
     yield "http://localhost:8080"
 
+    print(f"🛑 Stopping server...")
     try:
         proc.send_signal(signal.SIGTERM)
         proc.wait(timeout=5)
+        print(f"✅ Server stopped")
     except:
         proc.kill()
+        print(f"⚠️  Server killed forcefully")
 
 
 @pytest.fixture(scope="function")
@@ -119,6 +157,8 @@ def input_choices_app(repo_root):
         if key.startswith('PYTEST_'):
             env.pop(key, None)
 
+    print(f"\n🔧 Starting input_choices.py server...")
+
     proc = subprocess.Popen(
         [sys.executable, str(example_path)],
         stdout=subprocess.PIPE,
@@ -127,16 +167,32 @@ def input_choices_app(repo_root):
         env=env
     )
 
-    time.sleep(5)
+    # Wait for server to be ready by checking port availability
+    import socket
+    max_wait = 10
+    start_time = time.time()
 
-    if proc.poll() is not None:
-        output = proc.stdout.read().decode() if proc.stdout else ""
-        raise RuntimeError(f"Input choices app failed to start. Output: {output}")
+    while time.time() - start_time < max_wait:
+        if proc.poll() is not None:
+            raise RuntimeError(f"Server process died unexpectedly")
+
+        try:
+            with socket.create_connection(("localhost", 8080), timeout=1) as sock:
+                print(f"✅ Server is listening on port 8080")
+                break
+        except (ConnectionRefusedError, socket.timeout):
+            time.sleep(0.5)
+    else:
+        proc.kill()
+        raise RuntimeError(f"Server did not start within {max_wait} seconds")
 
     yield "http://localhost:8080"
 
+    print(f"🛑 Stopping server...")
     try:
         proc.send_signal(signal.SIGTERM)
         proc.wait(timeout=5)
+        print(f"✅ Server stopped")
     except:
         proc.kill()
+        print(f"⚠️  Server killed forcefully")

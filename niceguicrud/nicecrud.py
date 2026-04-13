@@ -188,6 +188,10 @@ class NiceCRUDCard(FieldHelperMixin, Generic[T]):
         self.on_validation_result = on_validation_result
         self.subitem_dialog = None
         self.basemodeltype = type(item)
+        # Create container immediately to ensure correct parent context
+        self._card_container = ui.column().classes("w-full")
+        self._error_label = None
+        self._error_row = None
         super().__init__()
         # As create_card needs to be async, use timer to run it in the nicegui
         # asyncio event loop
@@ -226,21 +230,33 @@ class NiceCRUDCard(FieldHelperMixin, Generic[T]):
             self.on_change_extra(attr, self.item)
         self.on_validation_result(val_result)
         if refresh:
-            self.create_card.refresh()
+            self.refresh_card()
 
-    @ui.refreshable
     async def create_card(self):
-        # with ui.column().classes("w-full"):
-        grid_class = "gap-1 gap-x-6 w-full items-center"
-        columns = "minmax(100px,max-content) 1fr " * self.column_count
-        with ui.grid(columns=columns).classes(grid_class):
-            for field_name, field_info in self.included_fields:
-                if field_name == self.config.id_field and not self.id_editable:
-                    continue
-                await self.get_input(field_name, field_info)
-        errlabel, errrow = show_error("")
-        errlabel.bind_text_from(self.errormsg, "msg")
-        errrow.bind_visibility_from(self.errormsg, "visible").classes("w-full")
+        """Create the card UI elements. Can be called to refresh the card."""
+        # Clear existing content
+        self._card_container.clear()
+
+        with self._card_container:
+            grid_class = "gap-1 gap-x-6 w-full items-center"
+            columns = "minmax(100px,max-content) 1fr " * self.column_count
+            with ui.grid(columns=columns).classes(grid_class):
+                for field_name, field_info in self.included_fields:
+                    if field_name == self.config.id_field and not self.id_editable:
+                        continue
+                    await self.get_input(field_name, field_info)
+
+        # Handle error display
+        if self._error_label is None:
+            self._error_label, self._error_row = show_error("")
+            self._error_label.bind_text_from(self.errormsg, "msg")
+            self._error_row.bind_visibility_from(self.errormsg, "visible").classes("w-full")
+
+    def refresh_card(self):
+        """Refresh the card display by calling create_card."""
+        # Note: This needs to be called in an async context
+        # We use a timer to schedule the async create_card
+        ui.timer(0, self.create_card, once=True)
 
     @staticmethod
     def get_min_max_from_field_info(
@@ -475,7 +491,7 @@ class NiceCRUDCard(FieldHelperMixin, Generic[T]):
             subitem_list.append(new_subitem)
 
             # Refresh card that contains list
-            self.create_card.refresh()
+            self.refresh_card()
 
         self.get_subitem_dialog(new_subitem, on_save=add_subitem)
         if self.subitem_dialog:
@@ -487,7 +503,7 @@ class NiceCRUDCard(FieldHelperMixin, Generic[T]):
         subitem_list = getattr(self.item, field_name)
         if 0 <= subitem_index < len(subitem_list):
             subitem_list.pop(subitem_index)
-            self.create_card.refresh()
+            self.refresh_card()
 
     def handle_edit_subitem(self, curval: BaseModel, lab: ui.label):
         log.debug(f"handle_edit_subitem {curval.model_dump(context=dict(gui=True))}")
