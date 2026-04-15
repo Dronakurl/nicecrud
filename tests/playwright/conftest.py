@@ -196,3 +196,55 @@ def input_choices_app(repo_root):
     except:
         proc.kill()
         print(f"⚠️  Server killed forcefully")
+
+
+@pytest.fixture(scope="function")
+def issue_15_app(repo_root):
+    """Launch issue_15_reproduction.py example in background, yield URL, then cleanup."""
+    example_path = repo_root / "examples" / "issue_15_reproduction.py"
+
+    env = os.environ.copy()
+    env.pop('PYTEST_CURRENT_TEST', None)
+    for key in list(env.keys()):
+        if key.startswith('PYTEST_'):
+            env.pop(key, None)
+
+    print(f"\n🔧 Starting issue_15_reproduction.py server...")
+
+    proc = subprocess.Popen(
+        [sys.executable, str(example_path)],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        cwd=str(repo_root),
+        env=env
+    )
+
+    # Wait for server to be ready by checking port availability
+    import socket
+    max_wait = 10
+    start_time = time.time()
+
+    while time.time() - start_time < max_wait:
+        if proc.poll() is not None:
+            raise RuntimeError(f"Server process died unexpectedly")
+
+        try:
+            with socket.create_connection(("localhost", 8080), timeout=1) as sock:
+                print(f"✅ Server is listening on port 8080")
+                break
+        except (ConnectionRefusedError, socket.timeout):
+            time.sleep(0.5)
+    else:
+        proc.kill()
+        raise RuntimeError(f"Server did not start within {max_wait} seconds")
+
+    yield "http://localhost:8080"
+
+    print(f"🛑 Stopping server...")
+    try:
+        proc.send_signal(signal.SIGTERM)
+        proc.wait(timeout=5)
+        print(f"✅ Server stopped")
+    except:
+        proc.kill()
+        print(f"⚠️  Server killed forcefully")

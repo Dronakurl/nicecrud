@@ -373,7 +373,8 @@ class NiceCRUDCard(FieldHelperMixin, Generic[T]):
 
             with ui.row().classes("items-center justify-shrink w-full flex-nowrap"):
                 # This is needed, to bin it to the label object
-                label = dict(label=str(curval.model_dump(context=dict(gui=True))))
+                label_text = str(curval.model_dump(context=dict(gui=True))) if curval is not None and hasattr(curval, 'model_dump') else "None"
+                label = dict(label=label_text)
                 # This is used to store settings for each BaseModel type
                 stordict = dict()
 
@@ -391,7 +392,7 @@ class NiceCRUDCard(FieldHelperMixin, Generic[T]):
                         curval = typemapper.get(selecta.value)(**opts)  # pyright: ignore
                         # Create a new object of the newly selected class
                         setattr(self.item, field_name, curval)
-                        label["label"] = str(curval.model_dump(context=dict(gui=True)))
+                        label["label"] = str(curval.model_dump(context=dict(gui=True))) if curval is not None and hasattr(curval, 'model_dump') else "None"
 
                 selecta = ui.select(
                     options=selections,
@@ -414,9 +415,8 @@ class NiceCRUDCard(FieldHelperMixin, Generic[T]):
         ## .. Single BaseModel (needs self.handle_edit_subitem)
         elif typ == BaseModel or (isinstance(typ, type) and issubclass(typ, BaseModel)):
             with ui.row().classes("items-center justify-shrink w-full flex-nowrap"):
-                lab = ui.label(str(curval.model_dump(context=dict(gui=True)))).classes(
-                    "text-slate-500"
-                )
+                label_text = str(curval.model_dump(context=dict(gui=True))) if curval is not None and hasattr(curval, 'model_dump') else "None"
+                lab = ui.label(label_text).classes("text-slate-500")
                 clickfun = partial(self.handle_edit_subitem, curval, lab)
                 ele = (
                     ui.button(icon="edit", on_click=clickfun)
@@ -432,7 +432,8 @@ class NiceCRUDCard(FieldHelperMixin, Generic[T]):
                 for i, subitem in enumerate(curval):
                     with ui.item():
                         with ui.item_section():
-                            lab = ui.label(str(subitem.model_dump(context=dict(gui=True))))
+                            label_text = str(subitem.model_dump(context=dict(gui=True))) if subitem is not None and hasattr(subitem, 'model_dump') else "None"
+                        lab = ui.label(label_text)
                         with ui.item_section().props("side"):
                             clickfun = partial(self.handle_edit_subitem, subitem, lab)
                             ui.button(icon="edit", on_click=clickfun).props("flat round")
@@ -506,14 +507,14 @@ class NiceCRUDCard(FieldHelperMixin, Generic[T]):
             self.refresh_card()
 
     def handle_edit_subitem(self, curval: BaseModel, lab: ui.label):
-        log.debug(f"handle_edit_subitem {curval.model_dump(context=dict(gui=True))}")
+        log.debug(f"handle_edit_subitem {curval.model_dump(context=dict(gui=True)) if curval is not None and hasattr(curval, 'model_dump') else 'None'}")
         self.get_subitem_dialog(curval)
         if self.subitem_dialog is None:
             log.error(f"Dialog for {curval} will not open")
             return
         self.subitem_dialog.open()
         self.subitem_dialog.on(
-            "before-hide", lambda: lab.set_text(str(curval.model_dump(context=dict(gui=True))))
+            "before-hide", lambda: lab.set_text(str(curval.model_dump(context=dict(gui=True))) if curval is not None and hasattr(curval, 'model_dump') else "None")
         )
 
     def get_subitem_dialog(self, item: BaseModel, on_save: Callable[[], None] = None):
