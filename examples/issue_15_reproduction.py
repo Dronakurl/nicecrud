@@ -37,4 +37,4 @@ def crud_page():
 
 
 if __name__ in {"__main__", "__mp_main__"}:
-    ui.run(root=crud_page, title="Issue #15 - Optional Nested Model")
+    ui.run(root=crud_page, title="Issue #15 - Optional Nested Model", port=8081)

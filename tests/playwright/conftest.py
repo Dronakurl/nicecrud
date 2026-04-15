@@ -229,8 +229,8 @@ def issue_15_app(repo_root):
             raise RuntimeError(f"Server process died unexpectedly")
 
         try:
-            with socket.create_connection(("localhost", 8080), timeout=1) as sock:
-                print(f"✅ Server is listening on port 8080")
+            with socket.create_connection(("localhost", 8081), timeout=1) as sock:
+                print(f"✅ Server is listening on port 8081")
                 break
         except (ConnectionRefusedError, socket.timeout):
             time.sleep(0.5)
@@ -238,7 +238,7 @@ def issue_15_app(repo_root):
         proc.kill()
         raise RuntimeError(f"Server did not start within {max_wait} seconds")
 
-    yield "http://localhost:8080"
+    yield "http://localhost:8081"
 
     print(f"🛑 Stopping server...")
     try:
