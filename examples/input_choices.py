@@ -1,6 +1,6 @@
 import logging
 from datetime import date, datetime, time
-from typing import Any, Literal, Optional, Union
+from typing import Any, Literal
 
 from nicegui import ui
 from pydantic import (
@@ -81,7 +81,7 @@ class NiceShoes(BaseModel, validate_assignment=True, title="Shoe"):
     style: Literal["sneakers", "heels", "ballet flats", "boots"] = Field(
         default="ballet flats", title="Shoe style"
     )
-    heelheight: Optional[float] = Field(default=None, title="height of heels")
+    heelheight: float | None = Field(default=None, title="height of heels")
     brand: Literal["Nike", "Adidas", "Converse", "Tamaris"] = Field(
         ..., title="Brand", description="<div>Only the <b>finest</b> brands<div>"
     )
@@ -92,7 +92,7 @@ class NiceShoes(BaseModel, validate_assignment=True, title="Shoe"):
     )
     winter: bool = Field(default=True, title="Winter collection")
     material: Material = Field(default_factory=Material, title="Material")
-    occasion: Union[ActiveWear, OfficeWear] = Field(default_factory=OfficeWear, title="Occasion")
+    occasion: ActiveWear | OfficeWear = Field(default_factory=OfficeWear, title="Occasion")
     payment_options: list[str] = Field(
         default_factory=list,
         title="Payment Options",
@@ -135,7 +135,7 @@ class NiceShoes(BaseModel, validate_assignment=True, title="Shoe"):
         return v
 
     @field_serializer("occasion")
-    def occasion_show(self, v: Union[ActiveWear, OfficeWear], info: SerializationInfo):
+    def occasion_show(self, v: ActiveWear | OfficeWear, info: SerializationInfo):
         context = info.context
         if context and context.get("gui"):
             return v.__class__.__name__
@@ -159,7 +159,7 @@ class NiceShoes(BaseModel, validate_assignment=True, title="Shoe"):
     @classmethod
     def validate_size(cls, v):
         if not isinstance(v, int):
-            raise ValueError("only integer Numbers")
+            raise ValueError("only integer Numbers")  # noqa: TRY004 (pydantic needs ValueError)
         if v > 45:
             raise ValueError("Your feet a too big")
         return v

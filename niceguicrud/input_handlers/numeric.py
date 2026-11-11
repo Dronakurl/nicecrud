@@ -1,11 +1,11 @@
 """Numeric input handlers for int and float types."""
 
 import logging
-from pydantic.fields import FieldInfo
+
 from nicegui import ui
+from pydantic.fields import FieldInfo
 
 from .base import InputContext
-
 
 logger = logging.getLogger(__name__)
 

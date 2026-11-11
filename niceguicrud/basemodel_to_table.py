@@ -1,12 +1,12 @@
-from typing import Optional, Sequence
+from collections.abc import Sequence
 
 from pydantic import BaseModel
 
 
 def basemodel_to_columns(
     bm: type[BaseModel],
-    exclude: set[str] = set(),
-    include: Optional[set[str]] = None,
+    exclude: set[str] | None = None,
+    include: set[str] | None = None,
 ) -> list[dict]:
     """Given a pydantic BaseModel type (class derived from BaseModel) return
     columns in list of dict format to be used with nicegui `ui.table`
@@ -22,7 +22,7 @@ def basemodel_to_columns(
     """
     columns = []
     for fieldname, fieldinfo in bm.model_fields.items():
-        if fieldname in exclude:
+        if exclude and fieldname in exclude:
             continue
         if include is not None and fieldname not in include:
             continue
@@ -35,8 +35,8 @@ def basemodel_to_columns(
 
 def basemodellist_to_rows(
     bmlist: Sequence[BaseModel],
-    exclude: set[str] = set(),
-    include: Optional[set[str]] = None,
+    exclude: set[str] | None = None,
+    include: set[str] | None = None,
 ) -> list[dict]:
     rows = []
     for bm in bmlist:
@@ -47,8 +47,8 @@ def basemodellist_to_rows(
 
 def basemodellist_to_rows_and_cols(
     bmlist: Sequence[BaseModel],
-    exclude: set[str] = set(),
-    include: Optional[set[str]] = None,
+    exclude: set[str] | None = None,
+    include: set[str] | None = None,
 ) -> tuple[list[dict], list[dict]]:
     if not bmlist:
         return [], []

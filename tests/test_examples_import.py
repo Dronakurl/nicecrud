@@ -4,7 +4,6 @@ This catches syntax errors, missing imports, and basic runtime issues
 in the example files before users encounter them.
 """
 
-import sys
 from pathlib import Path
 
 
@@ -24,7 +23,7 @@ def test_examples_can_be_compiled():
         try:
             compile(code, str(example_file), 'exec')
         except SyntaxError as e:
-            raise AssertionError(f"{example_file} has syntax error: {e}")
+            raise AssertionError(f"{example_file} has syntax error: {e}") from e
 
 
 def test_readme_examples_exist():
@@ -68,4 +67,4 @@ ui.run()
     try:
         compile(quickstart_code, 'README_quickstart', 'exec')
     except SyntaxError as e:
-        raise AssertionError(f"README Quick Start has syntax error: {e}")
+        raise AssertionError(f"README Quick Start has syntax error: {e}") from e

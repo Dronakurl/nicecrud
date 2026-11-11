@@ -1,12 +1,13 @@
 """Base classes and protocols for the modular input handler system."""
 
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Protocol, Any, Callable
+from typing import Any, Protocol
+
+from nicegui import ui
 from pydantic import BaseModel
 from pydantic.fields import FieldInfo
-from nicegui import ui
-
 
 logger = logging.getLogger(__name__)
 

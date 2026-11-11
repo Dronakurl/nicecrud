@@ -3,7 +3,6 @@
 Tests validation errors appear, error messages display, and save button disables on invalid input.
 """
 
-import pytest
 from playwright.sync_api import Page, expect
 
 

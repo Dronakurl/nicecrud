@@ -3,21 +3,21 @@
 Tests verify each handler's can_handle logic and create_widget behavior.
 """
 
-import pytest
-from datetime import date, time, datetime
+from datetime import date, datetime, time
 from pathlib import Path
 from typing import Literal
-from pydantic import BaseModel, Field
+
+from pydantic import BaseModel
 from pydantic.fields import FieldInfo
 
-from niceguicrud.input_handlers.string import StringHandler
-from niceguicrud.input_handlers.numeric import NumericHandler
+from niceguicrud.input_handlers.base import FallbackHandler
 from niceguicrud.input_handlers.boolean import BooleanHandler
-from niceguicrud.input_handlers.temporal import TemporalHandler
-from niceguicrud.input_handlers.selection import SelectionHandler
-from niceguicrud.input_handlers.nested import NestedHandler
 from niceguicrud.input_handlers.collections import CollectionHandler
-from niceguicrud.input_handlers.base import FallbackHandler, InputContext
+from niceguicrud.input_handlers.nested import NestedHandler
+from niceguicrud.input_handlers.numeric import NumericHandler
+from niceguicrud.input_handlers.selection import SelectionHandler
+from niceguicrud.input_handlers.string import StringHandler
+from niceguicrud.input_handlers.temporal import TemporalHandler
 
 
 class SampleModel(BaseModel):

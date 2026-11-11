@@ -1,12 +1,12 @@
 """Temporal input handlers for date, time, and datetime types."""
 
 import logging
-from datetime import date, time, datetime
-from pydantic.fields import FieldInfo
+from datetime import date, datetime, time
+
 from nicegui import ui
+from pydantic.fields import FieldInfo
 
 from .base import InputContext
-
 
 logger = logging.getLogger(__name__)
 
@@ -27,11 +27,7 @@ class TemporalHandler:
 
         # Format current value as string for input
         if current_value is not None:
-            if field_type is date:
-                value_str = current_value.isoformat()
-            elif field_type is time:
-                value_str = current_value.isoformat()
-            elif field_type is datetime:
+            if field_type is date or field_type is time or field_type is datetime:
                 value_str = current_value.isoformat()
             else:
                 value_str = str(current_value)
@@ -44,12 +40,11 @@ class TemporalHandler:
                 value=value_str,
                 on_change=lambda e: self._handle_date_change(e.value, context),
             )
-            with widget:
-                with ui.menu() as menu:
-                    ui.date(on_change=lambda e: (
-                        widget.set_value(e.value),
-                        menu.close()
-                    ))
+            with widget, ui.menu() as menu:
+                ui.date(on_change=lambda e: (
+                    widget.set_value(e.value),
+                    menu.close()
+                ))
             widget.props('append-icon="event"')
 
         elif field_type is time:
@@ -57,12 +52,11 @@ class TemporalHandler:
                 value=value_str,
                 on_change=lambda e: self._handle_time_change(e.value, context),
             )
-            with widget:
-                with ui.menu() as menu:
-                    ui.time(on_change=lambda e: (
-                        widget.set_value(e.value),
-                        menu.close()
-                    ))
+            with widget, ui.menu() as menu:
+                ui.time(on_change=lambda e: (
+                    widget.set_value(e.value),
+                    menu.close()
+                ))
             widget.props('append-icon="schedule"')
 
         elif field_type is datetime:
@@ -70,14 +64,12 @@ class TemporalHandler:
                 value=value_str,
                 on_change=lambda e: self._handle_datetime_change(e.value, context),
             )
-            with widget:
-                with ui.menu() as menu:
-                    with ui.column():
-                        ui.date(on_change=lambda e: widget.set_value(e.value + "T00:00"))
-                        ui.time(on_change=lambda e: (
-                            widget.set_value(widget.value.split("T")[0] + "T" + e.value),
-                            menu.close()
-                        ))
+            with widget, ui.menu() as menu, ui.column():
+                ui.date(on_change=lambda e: widget.set_value(e.value + "T00:00"))
+                ui.time(on_change=lambda e: (
+                    widget.set_value(widget.value.split("T")[0] + "T" + e.value),
+                    menu.close()
+                ))
             widget.props('append-icon="event"')
 
         else:

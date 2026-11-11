@@ -3,11 +3,11 @@
 import logging
 import typing
 from typing import Literal
-from pydantic.fields import FieldInfo
+
 from nicegui import ui
+from pydantic.fields import FieldInfo
 
 from .base import InputContext
-
 
 logger = logging.getLogger(__name__)
 
@@ -61,7 +61,8 @@ class SelectionHandler:
             validation_fn = list_to_dict_val
         else:
             display_value = current_value
-            validation_fn = lambda e: context.validation_callback(e.value)
+            def validation_fn(e):
+                return context.validation_callback(e.value)
 
         # Create select widget
         widget = ui.select(

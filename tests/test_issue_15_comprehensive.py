@@ -1,7 +1,6 @@
 """Comprehensive test for issue #15: Optional nested model support with UI testing."""
 
 import pytest
-from nicegui import ui
 from pydantic import BaseModel, Field
 
 from niceguicrud import NiceCRUDCard

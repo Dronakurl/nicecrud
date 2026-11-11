@@ -8,15 +8,13 @@ from pydantic import BaseModel
 from pydantic.fields import FieldInfo
 
 from niceguicrud.input_handlers import (
+    InputContext,
     get_registry,
     register_custom_handler,
-    InputHandlerProtocol,
-    InputContext,
-    NoHandlerFoundError,
 )
 from niceguicrud.input_handlers.base import FallbackHandler
-from niceguicrud.input_handlers.string import StringHandler
 from niceguicrud.input_handlers.numeric import NumericHandler
+from niceguicrud.input_handlers.string import StringHandler
 
 
 class DummyModel(BaseModel):
@@ -30,7 +28,7 @@ class CustomHandler:
 
     def can_handle(self, field_info: FieldInfo) -> bool:
         # Custom logic: only handles fields named "custom"
-        return hasattr(field_info, 'annotation') and field_info.annotation == str
+        return hasattr(field_info, 'annotation') and field_info.annotation is str
 
     def create_widget(self, context: InputContext):
         from nicegui import ui

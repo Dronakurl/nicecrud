@@ -2,12 +2,12 @@
 
 import logging
 import typing
+
+from nicegui import ui
 from pydantic import BaseModel
 from pydantic.fields import FieldInfo
-from nicegui import ui
 
 from .base import InputContext
-
 
 logger = logging.getLogger(__name__)
 
@@ -84,7 +84,7 @@ class NestedHandler:
     def _create_list_widget(self, context: InputContext, items: list) -> ui.element:
         """Create list widget for list of BaseModels."""
         with ui.list().classes("w-full").props("bordered separator") as list_widget:
-            for i, subitem in enumerate(items):
+            for subitem in items:
                 with ui.item():
                     with ui.item_section():
                         label_text = str(subitem.model_dump(context=dict(gui=True))) if hasattr(subitem, 'model_dump') else str(subitem)

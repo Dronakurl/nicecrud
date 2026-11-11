@@ -3,7 +3,6 @@
 Tests all input types: select, multiselect, slider, textarea, date, time, datetime, Path, etc.
 """
 
-import pytest
 from playwright.sync_api import Page, expect
 
 

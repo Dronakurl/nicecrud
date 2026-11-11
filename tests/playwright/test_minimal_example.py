@@ -3,7 +3,6 @@
 Tests string and number inputs render, accept input, and validate constraints.
 """
 
-import pytest
 from playwright.sync_api import Page, expect
 
 
