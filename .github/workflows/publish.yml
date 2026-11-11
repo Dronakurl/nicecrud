@@ -2,10 +2,49 @@ name: Publish Python Package
 
 on:
   release:
-    types: [published, edited]
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "Where to publish"
+        type: choice
+        options: [testpypi, pypi]
+        default: testpypi
+
+env:
+  TARGET: ${{ github.event.inputs.target || 'pypi' }}
 
 jobs:
+  check-version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+      should_publish: ${{ steps.v.outputs.should_publish }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check that the version is not yet published
+        id: v
+        run: |
+          version=$(python3 -c "import tomllib;print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")
+          name=$(python3 -c "import tomllib;print(tomllib.load(open('pyproject.toml','rb'))['project']['name'])")
+          if [ "$TARGET" = "testpypi" ]; then host=https://test.pypi.org; else host=https://pypi.org; fi
+          code=$(curl -s -o /dev/null -w '%{http_code}' "$host/pypi/$name/$version/json")
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          if [ "$code" = "200" ]; then
+            echo "::warning::$name $version already exists on $TARGET - nothing to publish. Bump the version in pyproject.toml."
+            echo "should_publish=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "should_publish=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  ci:
+    needs: check-version
+    if: needs.check-version.outputs.should_publish == 'true'
+    uses: ./.github/workflows/ci.yml
+
   publish:
+    needs: [check-version, ci]
+    if: needs.check-version.outputs.should_publish == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -14,9 +53,15 @@ jobs:
         with:
           enable-cache: true
           prune-cache: false
-      - name: Build and publish
+      - name: Build
+        run: uv build
+      - name: Publish to TestPyPI
+        if: env.TARGET == 'testpypi'
+        env:
+          UV_PUBLISH_TOKEN: ${{ secrets.TESTPYPI_TOKEN }}
+        run: uv publish --publish-url https://test.pypi.org/legacy/
+      - name: Publish to PyPI
+        if: env.TARGET == 'pypi'
         env:
           UV_PUBLISH_TOKEN: ${{ secrets.PYPI_TOKEN }}
-        run: |
-          uv build
-          uv publish
+        run: uv publish
