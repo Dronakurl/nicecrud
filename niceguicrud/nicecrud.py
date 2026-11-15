@@ -11,9 +11,9 @@ from types import UnionType
 from typing import Generic, Literal, TypeVar, Union
 
 import annotated_types
-import httpx
+import httpx2 as httpx
 from nicegui import events, ui
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, Field, TypeAdapter, ValidationError
 from pydantic.fields import FieldInfo
 from pydantic_core import PydanticUndefined
 
@@ -29,7 +29,9 @@ class FieldOptions(BaseModel, title="Options that can be set in each Field in js
     """Options that can be set in each Field in json_schema_extra"""
 
     step: float | None = Field(default=None, title="Step size for numeric Fields")
-    input_type: Literal["slider", "textarea", "number", "select", "multiselect"] | None = Field(default=None)
+    input_type: Literal["slider", "textarea", "number", "select", "multiselect"] | None = Field(
+        default=None
+    )
     selections: dict[str, str] | None = Field(
         default=None, title="selections for input_type=select"
     )
@@ -209,10 +211,10 @@ class NiceCRUDCard(FieldHelperMixin, Generic[T]):
             if not isinstance(getattr(self.item, attr), bool) and isinstance(
                 getattr(self.item, attr), int
             ):
-                value = None if value is None or value == '' else int(value)
+                value = None if value is None or value == "" else int(value)
             # Ensure, that Path remains Path
             if isinstance(getattr(self.item, attr), Path):
-                value = None if value is None or value == '' else Path(value)
+                value = None if value is None or value == "" else Path(value)
             setattr(self.item, attr, value)
             val_result = True
         except ValidationError as e:
@@ -315,7 +317,11 @@ class NiceCRUDCard(FieldHelperMixin, Generic[T]):
                 typ = args[0]
                 _optional = True
             # Union[BaseModel1, BaseModel2] case - basemodelswitcher
-            elif all(isinstance(x, type) and issubclass(x, BaseModel) for x in args if x is not type(None)):
+            elif all(
+                isinstance(x, type) and issubclass(x, BaseModel)
+                for x in args
+                if x is not type(None)
+            ):
                 _input_type = "basemodelswitcher"
 
         log.debug(f"{field_name=} {_input_type=} {typ=} {typing.get_origin(typ)=}")
@@ -372,7 +378,11 @@ class NiceCRUDCard(FieldHelperMixin, Generic[T]):
 
             with ui.row().classes("items-center justify-shrink w-full flex-nowrap"):
                 # This is needed, to bin it to the label object
-                label_text = str(curval.model_dump(context=dict(gui=True))) if curval is not None and hasattr(curval, 'model_dump') else "None"
+                label_text = (
+                    str(curval.model_dump(context=dict(gui=True)))
+                    if curval is not None and hasattr(curval, "model_dump")
+                    else "None"
+                )
                 label = dict(label=label_text)
                 # This is used to store settings for each BaseModel type
                 stordict = dict()
@@ -391,7 +401,11 @@ class NiceCRUDCard(FieldHelperMixin, Generic[T]):
                         curval = typemapper.get(selecta.value)(**opts)  # pyright: ignore
                         # Create a new object of the newly selected class
                         setattr(self.item, field_name, curval)
-                        label["label"] = str(curval.model_dump(context=dict(gui=True))) if curval is not None and hasattr(curval, 'model_dump') else "None"
+                        label["label"] = (
+                            str(curval.model_dump(context=dict(gui=True)))
+                            if curval is not None and hasattr(curval, "model_dump")
+                            else "None"
+                        )
 
                 selecta = ui.select(
                     options=selections,
@@ -414,7 +428,11 @@ class NiceCRUDCard(FieldHelperMixin, Generic[T]):
         ## .. Single BaseModel (needs self.handle_edit_subitem)
         elif typ == BaseModel or (isinstance(typ, type) and issubclass(typ, BaseModel)):
             with ui.row().classes("items-center justify-shrink w-full flex-nowrap"):
-                label_text = str(curval.model_dump(context=dict(gui=True))) if curval is not None and hasattr(curval, 'model_dump') else "None"
+                label_text = (
+                    str(curval.model_dump(context=dict(gui=True)))
+                    if curval is not None and hasattr(curval, "model_dump")
+                    else "None"
+                )
                 lab = ui.label(label_text).classes("text-slate-500")
                 clickfun = partial(self.handle_edit_subitem, curval, lab)
                 ele = (
@@ -424,14 +442,23 @@ class NiceCRUDCard(FieldHelperMixin, Generic[T]):
                 )
 
         ## .. List of BaseModels (needs self.handle_edit_subitem, etc.)
-        elif typing.get_origin(typ) is list and typing.get_args(typ) and isinstance(typing.get_args(typ)[0], type) and issubclass(typing.get_args(typ)[0], BaseModel):
+        elif (
+            typing.get_origin(typ) is list
+            and typing.get_args(typ)
+            and isinstance(typing.get_args(typ)[0], type)
+            and issubclass(typing.get_args(typ)[0], BaseModel)
+        ):
             if not curval:
                 curval = []
             with ui.list().classes("w-full").props("bordered separator"):
                 for i, subitem in enumerate(curval):
                     with ui.item():
                         with ui.item_section():
-                            label_text = str(subitem.model_dump(context=dict(gui=True))) if subitem is not None and hasattr(subitem, 'model_dump') else "None"
+                            label_text = (
+                                str(subitem.model_dump(context=dict(gui=True)))
+                                if subitem is not None and hasattr(subitem, "model_dump")
+                                else "None"
+                            )
                         lab = ui.label(label_text)
                         with ui.item_section().props("side"):
                             clickfun = partial(self.handle_edit_subitem, subitem, lab)
@@ -458,14 +485,17 @@ class NiceCRUDCard(FieldHelperMixin, Generic[T]):
                     current_value=curval,
                     validation_callback=validation,
                     config=self.config,
-                    item=self.item
+                    item=self.item,
                 )
                 ele = handler.create_widget(context)
             except NoHandlerFoundError:
                 log.error(f"No handler found for {field_name=} of type {typ=}")
                 ele = ui.input(value="ERROR", on_change=validation)
             except Exception as e:
-                log.warning(f"Handler {handler.__class__.__name__} failed for {field_name=}: {e}", exc_info=True)
+                log.warning(
+                    f"Handler {handler.__class__.__name__} failed for {field_name=}: {e}",
+                    exc_info=True,
+                )
                 ele = ui.input(value=str(curval) if curval else "", on_change=validation)
         if (_readonly and ele is not None) or (
             ele is not None and field_name == self.config.id_field and not self.id_editable
@@ -506,14 +536,21 @@ class NiceCRUDCard(FieldHelperMixin, Generic[T]):
             self.refresh_card()
 
     def handle_edit_subitem(self, curval: BaseModel, lab: ui.label):
-        log.debug(f"handle_edit_subitem {curval.model_dump(context=dict(gui=True)) if curval is not None and hasattr(curval, 'model_dump') else 'None'}")
+        log.debug(
+            f"handle_edit_subitem {curval.model_dump(context=dict(gui=True)) if curval is not None and hasattr(curval, 'model_dump') else 'None'}"
+        )
         self.get_subitem_dialog(curval)
         if self.subitem_dialog is None:
             log.error(f"Dialog for {curval} will not open")
             return
         self.subitem_dialog.open()
         self.subitem_dialog.on(
-            "before-hide", lambda: lab.set_text(str(curval.model_dump(context=dict(gui=True))) if curval is not None and hasattr(curval, 'model_dump') else "None")
+            "before-hide",
+            lambda: lab.set_text(
+                str(curval.model_dump(context=dict(gui=True)))
+                if curval is not None and hasattr(curval, "model_dump")
+                else "None"
+            ),
         )
 
     def get_subitem_dialog(self, item: BaseModel, on_save: Callable[[], None] | None = None):
@@ -676,12 +713,8 @@ class NiceCRUD(FieldHelperMixin[T], Generic[T]):
         log.debug(f"Create CRUD application site from {url=}")
         async with httpx.AsyncClient() as client:
             response = await client.get(url, headers=httpx.Headers(headers), follow_redirects=True)
-        listofdicts = response.json()
-        if not isinstance(listofdicts, list):
-            ui.notify(f"Invalid response from {url}", color="negative")
-            return None
         try:
-            basemodels = [basemodeltype(**data) for data in listofdicts]
+            basemodels = TypeAdapter(list[basemodeltype]).validate_json(response.content)
         except ValidationError as e:
             ui.notify(f"Invalid data from {url}", color="negative")
             log.error(f"ValidationError: {e!s}")
