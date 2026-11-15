@@ -61,6 +61,7 @@ class SelectionHandler:
             validation_fn = list_to_dict_val
         else:
             display_value = current_value
+
             def validation_fn(e):
                 return context.validation_callback(e.value)
 

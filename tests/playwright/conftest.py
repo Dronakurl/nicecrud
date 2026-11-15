@@ -41,9 +41,9 @@ def minimal_app(repo_root):
 
     # Create clean environment without pytest markers
     env = os.environ.copy()
-    env.pop('PYTEST_CURRENT_TEST', None)
+    env.pop("PYTEST_CURRENT_TEST", None)
     for key in list(env.keys()):
-        if key.startswith('PYTEST_'):
+        if key.startswith("PYTEST_"):
             env.pop(key, None)
 
     print("\n🔧 Starting minimal.py server...")
@@ -51,7 +51,8 @@ def minimal_app(repo_root):
     # Start the app - DON'T capture output since NiceGUI doesn't write to stdout/stderr when redirected
     # Write output to a temporary file instead
     import tempfile
-    with tempfile.NamedTemporaryFile(mode='w+', delete=False, suffix='.log') as log_file:
+
+    with tempfile.NamedTemporaryFile(mode="w+", delete=False, suffix=".log") as log_file:
         _ = log_file.name
 
     proc = subprocess.Popen(
@@ -59,11 +60,12 @@ def minimal_app(repo_root):
         stdout=subprocess.PIPE,  # Still capture to prevent terminal spam
         stderr=subprocess.STDOUT,
         cwd=str(repo_root),
-        env=env
+        env=env,
     )
 
     # Wait for server to be ready by checking port availability
     import socket
+
     max_wait = 10
     start_time = time.time()
 
@@ -101,9 +103,9 @@ def validation_app(repo_root):
     example_path = repo_root / "examples" / "validation.py"
 
     env = os.environ.copy()
-    env.pop('PYTEST_CURRENT_TEST', None)
+    env.pop("PYTEST_CURRENT_TEST", None)
     for key in list(env.keys()):
-        if key.startswith('PYTEST_'):
+        if key.startswith("PYTEST_"):
             env.pop(key, None)
 
     print("\n🔧 Starting validation.py server...")
@@ -113,11 +115,12 @@ def validation_app(repo_root):
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         cwd=str(repo_root),
-        env=env
+        env=env,
     )
 
     # Wait for server to be ready by checking port availability
     import socket
+
     max_wait = 10
     start_time = time.time()
 
@@ -153,9 +156,9 @@ def input_choices_app(repo_root):
     example_path = repo_root / "examples" / "input_choices.py"
 
     env = os.environ.copy()
-    env.pop('PYTEST_CURRENT_TEST', None)
+    env.pop("PYTEST_CURRENT_TEST", None)
     for key in list(env.keys()):
-        if key.startswith('PYTEST_'):
+        if key.startswith("PYTEST_"):
             env.pop(key, None)
 
     print("\n🔧 Starting input_choices.py server...")
@@ -165,11 +168,12 @@ def input_choices_app(repo_root):
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         cwd=str(repo_root),
-        env=env
+        env=env,
     )
 
     # Wait for server to be ready by checking port availability
     import socket
+
     max_wait = 10
     start_time = time.time()
 
@@ -205,9 +209,9 @@ def issue_15_app(repo_root):
     example_path = repo_root / "examples" / "issue_15_reproduction.py"
 
     env = os.environ.copy()
-    env.pop('PYTEST_CURRENT_TEST', None)
+    env.pop("PYTEST_CURRENT_TEST", None)
     for key in list(env.keys()):
-        if key.startswith('PYTEST_'):
+        if key.startswith("PYTEST_"):
             env.pop(key, None)
 
     print("\n🔧 Starting issue_15_reproduction.py server...")
@@ -217,11 +221,12 @@ def issue_15_app(repo_root):
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         cwd=str(repo_root),
-        env=env
+        env=env,
     )
 
     # Wait for server to be ready by checking port availability
     import socket
+
     max_wait = 10
     start_time = time.time()
 

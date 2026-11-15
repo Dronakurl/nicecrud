@@ -40,9 +40,7 @@ class TestStringHandler:
     def test_can_handle_textarea(self):
         handler = StringHandler()
         field_info = FieldInfo(
-            annotation=str,
-            default="",
-            json_schema_extra={"input_type": "textarea"}
+            annotation=str, default="", json_schema_extra={"input_type": "textarea"}
         )
         assert handler.can_handle(field_info) is True
 
@@ -116,18 +114,14 @@ class TestSelectionHandler:
     def test_can_handle_select_input_type(self):
         handler = SelectionHandler()
         field_info = FieldInfo(
-            annotation=str,
-            default="",
-            json_schema_extra={"input_type": "select"}
+            annotation=str, default="", json_schema_extra={"input_type": "select"}
         )
         assert handler.can_handle(field_info) is True
 
     def test_can_handle_multiselect_input_type(self):
         handler = SelectionHandler()
         field_info = FieldInfo(
-            annotation=dict,
-            default={},
-            json_schema_extra={"input_type": "multiselect"}
+            annotation=dict, default={}, json_schema_extra={"input_type": "multiselect"}
         )
         assert handler.can_handle(field_info) is True
 

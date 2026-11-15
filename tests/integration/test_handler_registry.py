@@ -28,10 +28,11 @@ class CustomHandler:
 
     def can_handle(self, field_info: FieldInfo) -> bool:
         # Custom logic: only handles fields named "custom"
-        return hasattr(field_info, 'annotation') and field_info.annotation is str
+        return hasattr(field_info, "annotation") and field_info.annotation is str
 
     def create_widget(self, context: InputContext):
         from nicegui import ui
+
         return ui.input(value="custom_handler", label="Custom")
 
 
@@ -155,14 +156,12 @@ class TestCustomHandlerRegistration:
 
         # Find position of custom handler
         custom_index = next(
-            i for i, h in enumerate(registry._handlers)
-            if isinstance(h, CustomHandler)
+            i for i, h in enumerate(registry._handlers) if isinstance(h, CustomHandler)
         )
 
         # Find position of built-in StringHandler
         string_index = next(
-            i for i, h in enumerate(registry._handlers)
-            if isinstance(h, StringHandler)
+            i for i, h in enumerate(registry._handlers) if isinstance(h, StringHandler)
         )
 
         # Custom should come before built-in
@@ -193,6 +192,7 @@ class TestCustomHandlerRegistration:
 
     def test_invalid_handler_raises_error(self):
         """Verify invalid handler raises TypeError."""
+
         class BadHandler:
             # Missing can_handle and create_widget methods
             priority = 100

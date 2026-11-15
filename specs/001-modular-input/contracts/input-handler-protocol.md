@@ -15,6 +15,7 @@ from typing import Protocol, Any
 from pydantic.fields import FieldInfo
 from nicegui import ui
 
+
 class InputHandlerProtocol(Protocol):
     """Protocol for input handlers that generate NiceGUI widgets for pydantic fields.
 
@@ -112,6 +113,7 @@ from dataclasses import dataclass
 from typing import Any, Callable
 from pydantic import BaseModel
 from pydantic.fields import FieldInfo
+
 
 @dataclass(frozen=True)
 class InputContext:
@@ -266,11 +268,13 @@ class ColorPickerHandler:
     def create_widget(self, context: InputContext) -> ui.Element:
         return ui.color_input(
             value=context.current_value.hex if context.current_value else "#000000",
-            on_change=lambda e: context.validation_callback(Color(e.value))
+            on_change=lambda e: context.validation_callback(Color(e.value)),
         )
+
 
 # Register before creating CRUD interface
 register_custom_handler(ColorPickerHandler())
+
 
 # Now Color fields automatically get color picker widget
 class Product(BaseModel):

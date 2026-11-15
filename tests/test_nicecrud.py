@@ -83,9 +83,9 @@ def test_empty_string_int_conversion():
     ValueError: invalid literal for int() with base 10: ''
     """
     # Test the conversion logic directly
-    value = ''
+    value = ""
     # This is the fixed logic from nicecrud.py line 208
-    result = None if value is None or value == '' else int(value)
+    result = None if value is None or value == "" else int(value)
     assert result is None
 
 
@@ -94,7 +94,7 @@ def test_empty_string_path_conversion():
     from pathlib import Path
 
     # Test the conversion logic directly
-    value = ''
+    value = ""
     # This is the fixed logic from nicecrud.py line 211
-    result = None if value is None or value == '' else Path(value)
+    result = None if value is None or value == "" else Path(value)
     assert result is None

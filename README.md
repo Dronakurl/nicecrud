@@ -35,7 +35,6 @@ pip install niceguicrud
 Here is a very basic example:
 
 ```python
-
 from nicegui import ui
 from pydantic import BaseModel, Field
 

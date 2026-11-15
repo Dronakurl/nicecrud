@@ -43,8 +43,7 @@ class NestedHandler:
                 # Check if all non-None args are BaseModel
                 non_none_args = [arg for arg in args if arg is not type(None)]
                 if non_none_args and all(
-                    isinstance(arg, type) and issubclass(arg, BaseModel)
-                    for arg in non_none_args
+                    isinstance(arg, type) and issubclass(arg, BaseModel) for arg in non_none_args
                 ):
                     return True
 
@@ -71,12 +70,18 @@ class NestedHandler:
                 current_value = model_type()
 
         with ui.row().classes("items-center justify-shrink w-full flex-nowrap"):
-            label_text = str(current_value.model_dump(context=dict(gui=True))) if hasattr(current_value, 'model_dump') else str(current_value)
+            label_text = (
+                str(current_value.model_dump(context=dict(gui=True)))
+                if hasattr(current_value, "model_dump")
+                else str(current_value)
+            )
             ui.label(label_text).classes("text-slate-500")
 
             # For now, create a placeholder button
             # In full implementation, this would call handle_edit_subitem
-            button = ui.button(icon="edit").props("flat round").classes("text-lightprimary dark:primary")
+            button = (
+                ui.button(icon="edit").props("flat round").classes("text-lightprimary dark:primary")
+            )
             button.tooltip("Edit nested object (handler needs NiceCRUDCard integration)")
 
         return button
@@ -87,7 +92,11 @@ class NestedHandler:
             for subitem in items:
                 with ui.item():
                     with ui.item_section():
-                        label_text = str(subitem.model_dump(context=dict(gui=True))) if hasattr(subitem, 'model_dump') else str(subitem)
+                        label_text = (
+                            str(subitem.model_dump(context=dict(gui=True)))
+                            if hasattr(subitem, "model_dump")
+                            else str(subitem)
+                        )
                         ui.label(label_text)
                     with ui.item_section().props("side"):
                         button = ui.button(icon="edit").props("flat round")

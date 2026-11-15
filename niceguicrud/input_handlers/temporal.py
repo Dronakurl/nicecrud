@@ -41,10 +41,7 @@ class TemporalHandler:
                 on_change=lambda e: self._handle_date_change(e.value, context),
             )
             with widget, ui.menu() as menu:
-                ui.date(on_change=lambda e: (
-                    widget.set_value(e.value),
-                    menu.close()
-                ))
+                ui.date(on_change=lambda e: (widget.set_value(e.value), menu.close()))
             widget.props('append-icon="event"')
 
         elif field_type is time:
@@ -53,10 +50,7 @@ class TemporalHandler:
                 on_change=lambda e: self._handle_time_change(e.value, context),
             )
             with widget, ui.menu() as menu:
-                ui.time(on_change=lambda e: (
-                    widget.set_value(e.value),
-                    menu.close()
-                ))
+                ui.time(on_change=lambda e: (widget.set_value(e.value), menu.close()))
             widget.props('append-icon="schedule"')
 
         elif field_type is datetime:
@@ -66,10 +60,12 @@ class TemporalHandler:
             )
             with widget, ui.menu() as menu, ui.column():
                 ui.date(on_change=lambda e: widget.set_value(e.value + "T00:00"))
-                ui.time(on_change=lambda e: (
-                    widget.set_value(widget.value.split("T")[0] + "T" + e.value),
-                    menu.close()
-                ))
+                ui.time(
+                    on_change=lambda e: (
+                        widget.set_value(widget.value.split("T")[0] + "T" + e.value),
+                        menu.close(),
+                    )
+                )
             widget.props('append-icon="event"')
 
         else:

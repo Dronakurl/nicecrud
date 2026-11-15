@@ -12,6 +12,7 @@ from niceguicrud import NiceCRUD
 
 class IntentSpec(BaseModel):
     """Nested model representing an intent."""
+
     name: str = Field(title="Intent Name")
     description: str = Field(title="Description", default="")
     confidence: float = Field(title="Confidence", ge=0.0, le=1.0, default=0.5)
@@ -19,6 +20,7 @@ class IntentSpec(BaseModel):
 
 class Agent(BaseModel):
     """Agent model with nested list of intents."""
+
     id: int = Field(title="Agent ID")
     name: str = Field(title="Agent Name")
     intents: list[IntentSpec] = Field(
@@ -42,7 +44,9 @@ agents = [
         id=2,
         name="Sales Bot",
         intents=[
-            IntentSpec(name="product_inquiry", description="Answer product questions", confidence=0.92),
+            IntentSpec(
+                name="product_inquiry", description="Answer product questions", confidence=0.92
+            ),
             IntentSpec(name="pricing", description="Provide pricing info", confidence=0.88),
         ],
     ),

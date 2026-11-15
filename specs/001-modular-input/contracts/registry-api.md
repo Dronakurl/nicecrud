@@ -29,10 +29,7 @@ from niceguicrud.input_handlers import (
 ### `register_custom_handler`
 
 ```python
-def register_custom_handler(
-    handler: InputHandlerProtocol,
-    priority: int = 150
-) -> None:
+def register_custom_handler(handler: InputHandlerProtocol, priority: int = 150) -> None:
     """Register a custom input handler for domain-specific types.
 
     Custom handlers are checked before built-in handlers if priority > 100.
@@ -120,11 +117,7 @@ class HandlerRegistry:
 ### `register` Method
 
 ```python
-def register(
-    self,
-    handler: InputHandlerProtocol,
-    priority: int | None = None
-) -> None:
+def register(self, handler: InputHandlerProtocol, priority: int | None = None) -> None:
     """Register a handler in the registry.
 
     Args:
@@ -226,9 +219,7 @@ class NoHandlerFoundError(Exception):
 
     def __init__(self, field_info: FieldInfo):
         self.field_info = field_info
-        super().__init__(
-            f"No handler found for field type: {field_info.annotation}"
-        )
+        super().__init__(f"No handler found for field type: {field_info.annotation}")
 ```
 
 ---
@@ -241,6 +232,7 @@ class NoHandlerFoundError(Exception):
 from niceguicrud.input_handlers import InputHandlerProtocol, InputContext, register_custom_handler
 from pydantic.fields import FieldInfo
 from nicegui import ui
+
 
 class EmailHandler:
     """Custom handler for email fields with validation."""
@@ -256,11 +248,13 @@ class EmailHandler:
         return ui.input(
             value=context.current_value,
             validation=context.validation_callback,
-            placeholder="user@example.com"
+            placeholder="user@example.com",
         ).props('type="email"')
+
 
 # Register once at application startup
 register_custom_handler(EmailHandler())
+
 
 # Use in models
 class User(BaseModel):
@@ -276,6 +270,7 @@ class User(BaseModel):
 import pytest
 from niceguicrud.input_handlers import get_registry
 
+
 @pytest.fixture
 def clean_registry():
     """Reset registry to default state for each test."""
@@ -288,6 +283,7 @@ def clean_registry():
     # Restore original handlers
     registry._handlers = original_handlers
     registry.clear_cache()
+
 
 def test_custom_handler(clean_registry):
     """Test custom handler registration."""
@@ -308,6 +304,7 @@ from niceguicrud.input_handlers import get_registry, StringHandler
 registry = get_registry()
 registry.unregister(StringHandler)
 
+
 # Register custom replacement
 class CustomStringHandler:
     priority = 100
@@ -320,6 +317,7 @@ class CustomStringHandler:
         input_widget = ui.input(value=context.current_value, validation=context.validation_callback)
         ui.label().bind_text_from(input_widget, "value", backward=lambda v: f"{len(v or '')} chars")
         return input_widget
+
 
 registry.register(CustomStringHandler())
 ```
@@ -381,6 +379,7 @@ class MyCustomTypeHandler:
 
     def create_widget(self, context):
         return ui.custom_widget(value=context.current_value)
+
 
 # Register once at startup
 register_custom_handler(MyCustomTypeHandler())

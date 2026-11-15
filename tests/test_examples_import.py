@@ -21,7 +21,7 @@ def test_examples_can_be_compiled():
 
         # Test that code compiles without syntax errors
         try:
-            compile(code, str(example_file), 'exec')
+            compile(code, str(example_file), "exec")
         except SyntaxError as e:
             raise AssertionError(f"{example_file} has syntax error: {e}") from e
 
@@ -43,7 +43,7 @@ def test_readme_examples_exist():
 
 def test_quickstart_example_syntax():
     """Test that the Quick Start example from README has valid syntax."""
-    quickstart_code = '''
+    quickstart_code = """
 from nicegui import ui
 from pydantic import BaseModel, Field
 
@@ -61,10 +61,10 @@ instance2 = MyModel(id=2, name="Bob", age=25)
 crud_app = NiceCRUD(basemodels=[instance1, instance2], id_field="id", heading="User Management")
 
 ui.run()
-'''
+"""
 
     # Test that quickstart code compiles
     try:
-        compile(quickstart_code, 'README_quickstart', 'exec')
+        compile(quickstart_code, "README_quickstart", "exec")
     except SyntaxError as e:
         raise AssertionError(f"README Quick Start has syntax error: {e}") from e

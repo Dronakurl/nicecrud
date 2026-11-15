@@ -84,7 +84,10 @@ class NumericHandler:
         """Check if field is Optional (Union with None)."""
         import typing
 
-        if typing.get_origin(field_info.annotation) in (typing.Union, typing.get_args(typing.Union)[0].__class__):
+        if typing.get_origin(field_info.annotation) in (
+            typing.Union,
+            typing.get_args(typing.Union)[0].__class__,
+        ):
             args = typing.get_args(field_info.annotation)
             return len(args) > 1 and type(None) in args
         return False

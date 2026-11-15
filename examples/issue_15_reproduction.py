@@ -8,6 +8,7 @@ from niceguicrud import NiceCRUDCard
 
 class Address(BaseModel):
     """Address model."""
+
     street: str = Field(title="Street")
     city: str = Field(title="City")
     zip_code: str = Field(title="ZIP Code")
@@ -15,6 +16,7 @@ class Address(BaseModel):
 
 class MyModel(BaseModel, title="User"):
     """User model with optional nested address."""
+
     id: int
     name: str = Field(title="Name")
     age: int = Field(gt=0, title="Age")
@@ -23,7 +25,10 @@ class MyModel(BaseModel, title="User"):
 
 
 instance1 = MyModel(
-    id=1, name="Alice", age=30, address_1=Address(street="123 Main St", city="Anytown", zip_code="12345")
+    id=1,
+    name="Alice",
+    age=30,
+    address_1=Address(street="123 Main St", city="Anytown", zip_code="12345"),
 )
 
 

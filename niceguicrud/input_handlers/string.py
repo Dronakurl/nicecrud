@@ -45,10 +45,14 @@ class StringHandler:
         # Create widget based on input type
         if input_type == "markdown":
             # For markdown, use a textarea (markdown rendering handled in display)
-            widget = ui.textarea(
-                value=str(current_value),
-                on_change=lambda e: context.validation_callback(e.value),
-            ).classes('w-full').props('rows=10')
+            widget = (
+                ui.textarea(
+                    value=str(current_value),
+                    on_change=lambda e: context.validation_callback(e.value),
+                )
+                .classes("w-full")
+                .props("rows=10")
+            )
 
         elif input_type == "textarea":
             widget = ui.textarea(

@@ -8,6 +8,7 @@ from niceguicrud import NiceCRUDCard
 
 class Address(BaseModel):
     """Address model."""
+
     street: str = Field(title="Street")
     city: str = Field(title="City")
     zip_code: str = Field(title="ZIP Code")
@@ -15,6 +16,7 @@ class Address(BaseModel):
 
 class MyModel(BaseModel, title="User"):
     """User model with optional nested address."""
+
     id: int
     name: str = Field(title="Name")
     age: int = Field(gt=0, title="Age")
@@ -28,7 +30,7 @@ def test_optional_nested_model_none_value():
         id=1,
         name="Alice",
         age=30,
-        address_1=Address(street="123 Main St", city="Anytown", zip_code="12345")
+        address_1=Address(street="123 Main St", city="Anytown", zip_code="12345"),
     )
 
     # This should not raise an AttributeError
@@ -44,7 +46,7 @@ def test_optional_nested_model_with_value():
         name="Alice",
         age=30,
         address_1=Address(street="123 Main St", city="Anytown", zip_code="12345"),
-        address_2=Address(street="456 Oak Ave", city="Sometown", zip_code="67890")
+        address_2=Address(street="456 Oak Ave", city="Sometown", zip_code="67890"),
     )
 
     # This should work fine
@@ -60,7 +62,7 @@ def test_optional_nested_model_ui_render():
         id=1,
         name="Alice",
         age=30,
-        address_1=Address(street="123 Main St", city="Anytown", zip_code="12345")
+        address_1=Address(street="123 Main St", city="Anytown", zip_code="12345"),
         # address_2 is None by default
     )
 

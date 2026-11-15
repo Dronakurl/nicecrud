@@ -92,20 +92,16 @@ class CollectionHandler:
                         ui.input(
                             value=str(item),
                             on_change=lambda e, idx=i: update_item(idx, e.value),
-                            placeholder=f"{element_type.__name__} value"
+                            placeholder=f"{element_type.__name__} value",
                         ).classes("flex-grow")
                     with ui.item_section().props("side"):
-                        ui.button(
-                            icon="delete",
-                            on_click=lambda idx=i: remove_item(idx)
-                        ).props("flat round dense").classes("text-red-500")
+                        ui.button(icon="delete", on_click=lambda idx=i: remove_item(idx)).props(
+                            "flat round dense"
+                        ).classes("text-red-500")
 
             # Add button
             with ui.item():
-                ui.button(
-                    icon="add",
-                    on_click=add_item
-                ).props("flat round").classes("text-primary")
+                ui.button(icon="add", on_click=add_item).props("flat round").classes("text-primary")
 
         # Create the list container
         with ui.list().classes("w-full").props("bordered separator") as list_container:

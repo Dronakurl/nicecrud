@@ -219,5 +219,6 @@ class ColorPickerHandler:
     def create_widget(self, ctx: InputContext) -> ui.Element:
         return ui.color_input(value=ctx.current_value, on_change=ctx.validation_callback)
 
+
 register_custom_handler(ColorPickerHandler())
 ```

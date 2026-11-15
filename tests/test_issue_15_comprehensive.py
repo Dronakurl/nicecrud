@@ -8,6 +8,7 @@ from niceguicrud import NiceCRUDCard
 
 class Address(BaseModel):
     """Address model."""
+
     street: str = Field(title="Street")
     city: str = Field(title="City")
     zip_code: str = Field(title="ZIP Code")
@@ -15,6 +16,7 @@ class Address(BaseModel):
 
 class UserWithOptionalAddress(BaseModel, title="User"):
     """User model with optional nested address - exact model from issue #15."""
+
     id: int
     name: str = Field(title="Name")
     age: int = Field(gt=0, title="Age")
@@ -28,7 +30,7 @@ def test_issue_15_exact_reproduction():
         id=1,
         name="Alice",
         age=30,
-        address_1=Address(street="123 Main St", city="Anytown", zip_code="12345")
+        address_1=Address(street="123 Main St", city="Anytown", zip_code="12345"),
         # address_2 is None by default - this was causing AttributeError
     )
 
@@ -45,7 +47,7 @@ def test_optional_address_with_value():
         name="Alice",
         age=30,
         address_1=Address(street="123 Main St", city="Anytown", zip_code="12345"),
-        address_2=Address(street="456 Oak Ave", city="Sometown", zip_code="67890")
+        address_2=Address(street="456 Oak Ave", city="Sometown", zip_code="67890"),
     )
 
     card = NiceCRUDCard(instance, heading="User Management")
@@ -56,6 +58,7 @@ def test_optional_address_with_value():
 
 def test_multiple_optional_fields():
     """Test model with multiple optional nested models."""
+
     class ExtendedUser(BaseModel, title="Extended User"):
         id: int
         name: str
@@ -66,7 +69,7 @@ def test_multiple_optional_fields():
     instance = ExtendedUser(
         id=1,
         name="Bob",
-        work_address=Address(street="123 Work St", city="Worktown", zip_code="11111")
+        work_address=Address(street="123 Work St", city="Worktown", zip_code="11111"),
         # home_address and other_address are None
     )
 
@@ -79,6 +82,7 @@ def test_multiple_optional_fields():
 
 def test_all_optional_fields_none():
     """Test model where all optional nested fields are None."""
+
     class UserWithAllOptionals(BaseModel):
         id: int
         name: str
@@ -87,7 +91,7 @@ def test_all_optional_fields_none():
 
     instance = UserWithAllOptionals(
         id=1,
-        name="Charlie"
+        name="Charlie",
         # All optional addresses are None
     )
 
@@ -99,6 +103,7 @@ def test_all_optional_fields_none():
 
 def test_deeply_nested_optional_models():
     """Test deeply nested optional models."""
+
     class ContactInfo(BaseModel):
         email: str
         phone: str | None = None
@@ -113,7 +118,7 @@ def test_deeply_nested_optional_models():
 
     instance = Company(
         name="Test Company",
-        ceo=None  # This was causing the error
+        ceo=None,  # This was causing the error
     )
 
     card = NiceCRUDCard(instance, heading="Company")
@@ -123,6 +128,7 @@ def test_deeply_nested_optional_models():
 
 def test_optional_model_list_with_none_items():
     """Test that lists containing None values are handled correctly."""
+
     class ModelWithOptionalList(BaseModel):
         id: int
         addresses: list[Address | None] = []
@@ -132,8 +138,8 @@ def test_optional_model_list_with_none_items():
         addresses=[
             Address(street="123 Main St", city="Anytown", zip_code="12345"),
             None,  # This None in a list could also cause issues
-            Address(street="456 Oak Ave", city="Sometown", zip_code="67890")
-        ]
+            Address(street="456 Oak Ave", city="Sometown", zip_code="67890"),
+        ],
     )
 
     card = NiceCRUDCard(instance, heading="Model With Optional List")

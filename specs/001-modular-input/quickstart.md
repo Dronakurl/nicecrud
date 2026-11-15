@@ -22,8 +22,10 @@ Create a custom handler when:
 ```python
 from pydantic import BaseModel, field_validator
 
+
 class Color(BaseModel):
     """RGB color represented as hex string."""
+
     hex: str
 
     @field_validator("hex")
@@ -31,6 +33,7 @@ class Color(BaseModel):
         if not v.startswith("#") or len(v) != 7:
             raise ValueError("Must be 7-char hex color (#RRGGBB)")
         return v
+
 
 class Product(BaseModel):
     name: str
@@ -45,6 +48,7 @@ class Product(BaseModel):
 from niceguicrud.input_handlers import InputHandlerProtocol, InputContext
 from pydantic.fields import FieldInfo
 from nicegui import ui
+
 
 class ColorPickerHandler:
     """Custom handler for Color type using NiceGUI color picker."""
@@ -64,10 +68,7 @@ class ColorPickerHandler:
             color = Color(hex=e.value)
             context.validation_callback(color)
 
-        return ui.color_input(
-            value=current_hex,
-            on_change=on_color_change
-        )
+        return ui.color_input(value=current_hex, on_change=on_color_change)
 ```
 
 ---
@@ -121,6 +122,7 @@ class RichTextHandler:
         # Use a rich text editor widget
         return ui.editor(value=context.current_value, on_change=context.validation_callback)
 
+
 # Usage in model
 class Article(BaseModel):
     title: str
@@ -144,18 +146,8 @@ class GeoCoordinateHandler:
         coord = context.current_value or GeoCoordinate(lat=0, lon=0)
 
         with ui.row() as row:
-            lat_input = ui.number(
-                value=coord.lat,
-                label="Latitude",
-                min=-90,
-                max=90
-            )
-            lon_input = ui.number(
-                value=coord.lon,
-                label="Longitude",
-                min=-180,
-                max=180
-            )
+            lat_input = ui.number(value=coord.lat, label="Latitude", min=-90, max=90)
+            lon_input = ui.number(value=coord.lon, label="Longitude", min=-180, max=180)
 
             def update_coord():
                 new_coord = GeoCoordinate(lat=lat_input.value, lon=lon_input.value)
@@ -179,6 +171,7 @@ class CurrencyHandler:
 
     def can_handle(self, field_info: FieldInfo) -> bool:
         import typing
+
         # Handle both Currency and Optional[Currency]
         origin = typing.get_origin(field_info.annotation)
         if origin in (typing.Union, typing.UnionType):
@@ -197,11 +190,7 @@ class CurrencyHandler:
             else:
                 context.validation_callback(Currency(amount=float(e.value), code="USD"))
 
-        input_widget = ui.number(
-            value=value_str,
-            validation=on_change,
-            prefix="$"
-        )
+        input_widget = ui.number(value=value_str, validation=on_change, prefix="$")
 
         # Add clearable for optional fields
         if typing.get_origin(context.field_info.annotation) in (typing.Union, typing.UnionType):
@@ -220,6 +209,7 @@ class CurrencyHandler:
 import pytest
 from pydantic import BaseModel, Field
 from niceguicrud.input_handlers import InputContext, get_registry
+
 
 def test_color_picker_handler():
     """Test ColorPickerHandler creates correct widget."""
@@ -242,7 +232,7 @@ def test_color_picker_handler():
         current_value=Color(hex="#FF0000"),
         validation_callback=lambda x: None,
         config=NiceCRUDConfig(),
-        item=TestModel(color=Color(hex="#FF0000"))
+        item=TestModel(color=Color(hex="#FF0000")),
     )
 
     widget = handler.create_widget(ctx)
@@ -258,6 +248,7 @@ def test_color_picker_handler():
 import pytest
 from playwright.sync_api import Page
 
+
 @pytest.fixture
 def color_app(page: Page):
     """Launch example app with Color field."""
@@ -266,6 +257,7 @@ def color_app(page: Page):
     page.goto("http://localhost:8080")
     yield page
     proc.terminate()
+
 
 def test_color_picker_interaction(color_app: Page):
     """Test color picker widget in browser."""
@@ -281,7 +273,7 @@ def test_color_picker_interaction(color_app: Page):
     color_input.fill("#00FF00")
 
     # Verify validation callback fired (check for error message absence)
-    error = color_app.locator('.error')
+    error = color_app.locator(".error")
     assert not error.is_visible()
 
     # Save and verify
@@ -351,6 +343,8 @@ def test_color_picker_interaction(color_app: Page):
    ```python
    # BAD
    _current_value = None
+
+
    def create_widget(self, context):
        global _current_value
        _current_value = context.current_value  # Not thread-safe!
@@ -392,10 +386,12 @@ class MyHandler:
 # Ensure on_change/validation uses callback
 ui.input(value=val, validation=context.validation_callback)
 
+
 # For custom events
 def my_change_handler(e):
     new_value = transform(e.value)
     context.validation_callback(new_value)  # REQUIRED
+
 
 ui.custom_widget(on_change=my_change_handler)
 ```

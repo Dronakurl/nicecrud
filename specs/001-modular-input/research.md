@@ -53,6 +53,7 @@ async def minimal_app(page):
     yield page
     proc.terminate()
 
+
 # Page object encapsulates UI interactions
 class CRUDPage:
     def fill_field(self, label, value):
@@ -124,10 +125,11 @@ class InputContext:
 # User code
 def register_custom_handler(
     handler: InputHandlerProtocol,
-    priority: int = 100  # Higher = checked first
+    priority: int = 100,  # Higher = checked first
 ) -> None:
     """Register a custom input handler for domain-specific types."""
     _registry.register(handler, priority)
+
 
 # Example usage
 class ColorHandler:
@@ -136,6 +138,7 @@ class ColorHandler:
 
     def create_widget(self, ctx: InputContext) -> ui.Element:
         return ui.color_input(value=ctx.current_value, on_change=ctx.validation_callback)
+
 
 register_custom_handler(ColorHandler(), priority=150)
 ```
